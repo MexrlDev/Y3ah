@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>System Info · Max Tools</title>
     <style>
         * {
@@ -74,7 +74,7 @@
             border-bottom-color: #2a2a2a;
         }
         .info-label {
-            width: 140px;
+            width: 160px;
             font-weight: 500;
             color: #64748b;
         }
@@ -121,21 +121,31 @@
 
 <script>
     (function() {
+        // Safe localStorage
+        function storageGet(key) {
+            try { return localStorage.getItem(key); } catch(e) { return null; }
+        }
+
         // Load preferences
-        const savedLang = localStorage.getItem('max-music-lang') || 'en';
-        const savedTheme = localStorage.getItem('max-music-theme') || 'light';
-        const lang = ['en','ru','es'].includes(savedLang) ? savedLang : 'en';
+        var savedLang = storageGet('max-music-lang') || 'en';
+        var savedTheme = storageGet('max-music-theme') || 'light';
+        var lang = (['en','ru','es'].indexOf(savedLang) !== -1) ? savedLang : 'en';
 
         if (savedTheme === 'dark') {
             document.body.classList.add('dark');
         }
 
         // i18n
-        const i18n = {
+        var i18n = {
             en: {
                 back: '← Back to Tools',
                 title: 'System Diagnostics',
-                browser: 'Browser & OS',
+                versions: 'Versions',
+                browserLabel: 'Browser:',
+                jsVersion: 'JavaScript (ECMAScript):',
+                htmlVersion: 'HTML Version:',
+                cssVersion: 'CSS Support:',
+                browserOs: 'Browser & OS',
                 screen: 'Screen & Viewport',
                 storage: 'Local Storage',
                 jsFeatures: 'JavaScript Features',
@@ -145,7 +155,12 @@
             ru: {
                 back: '← Назад к инструментам',
                 title: 'Диагностика системы',
-                browser: 'Браузер и ОС',
+                versions: 'Версии',
+                browserLabel: 'Браузер:',
+                jsVersion: 'JavaScript (ECMAScript):',
+                htmlVersion: 'Версия HTML:',
+                cssVersion: 'Поддержка CSS:',
+                browserOs: 'Браузер и ОС',
                 screen: 'Экран и область просмотра',
                 storage: 'Локальное хранилище',
                 jsFeatures: 'Возможности JavaScript',
@@ -155,7 +170,12 @@
             es: {
                 back: '← Volver a Herramientas',
                 title: 'Diagnóstico del sistema',
-                browser: 'Navegador y SO',
+                versions: 'Versiones',
+                browserLabel: 'Navegador:',
+                jsVersion: 'JavaScript (ECMAScript):',
+                htmlVersion: 'Versión HTML:',
+                cssVersion: 'Soporte CSS:',
+                browserOs: 'Navegador y SO',
                 screen: 'Pantalla y viewport',
                 storage: 'Almacenamiento local',
                 jsFeatures: 'Características JS',
@@ -168,36 +188,111 @@
         document.getElementById('title').textContent = i18n[lang].title;
         document.getElementById('refreshBtn').textContent = i18n[lang].refresh;
 
+        // ---------- Detect browser name and version ----------
+        function getBrowserInfo() {
+            var ua = navigator.userAgent;
+            var name = 'Unknown';
+            var version = 'Unknown';
+            var temp;
+
+            if (ua.indexOf('Firefox') > -1) {
+                name = 'Firefox';
+                temp = ua.match(/Firefox\/(\d+\.\d+)/);
+                version = temp ? temp[1] : '?';
+            } else if (ua.indexOf('Edg') > -1) {
+                name = 'Edge';
+                temp = ua.match(/Edg\/(\d+\.\d+)/);
+                version = temp ? temp[1] : '?';
+            } else if (ua.indexOf('Chrome') > -1) {
+                name = 'Chrome';
+                temp = ua.match(/Chrome\/(\d+\.\d+)/);
+                version = temp ? temp[1] : '?';
+            } else if (ua.indexOf('Safari') > -1) {
+                name = 'Safari';
+                temp = ua.match(/Version\/(\d+\.\d+)/);
+                version = temp ? temp[1] : '?';
+            } else if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) {
+                name = 'Opera';
+                temp = ua.match(/(?:Opera|OPR)\/(\d+\.\d+)/);
+                version = temp ? temp[1] : '?';
+            } else if (ua.indexOf('MSIE') > -1 || ua.indexOf('Trident') > -1) {
+                name = 'Internet Explorer';
+                temp = ua.match(/(?:MSIE |rv:)(\d+\.\d+)/);
+                version = temp ? temp[1] : '?';
+            }
+            return { name: name, version: version };
+        }
+
+        // ---------- Detect JS (ECMAScript) version ----------
+        function getJSVersion() {
+            if (typeof BigInt !== 'undefined' && typeof globalThis !== 'undefined') return 'ES2020+ (ES11+)';
+            if (typeof Object.fromEntries !== 'undefined') return 'ES2019 (ES10)';
+            if (typeof Promise.prototype.finally !== 'undefined') return 'ES2018 (ES9)';
+            if (typeof Object.values !== 'undefined' && typeof String.prototype.padStart !== 'undefined') return 'ES2017 (ES8)';
+            if (typeof Array.prototype.includes !== 'undefined') return 'ES2016 (ES7)';
+            if (typeof Promise !== 'undefined' && typeof Map !== 'undefined') return 'ES2015 (ES6)';
+            if (typeof JSON !== 'undefined') return 'ES5';
+            return 'ES3 or older';
+        }
+
+        // ---------- Detect HTML version (based on features) ----------
+        function getHTMLVersion() {
+            var test = document.createElement('div');
+            if ('contentEditable' in test) {
+                // HTML5 features
+                if (typeof window.history.pushState !== 'undefined') return 'HTML5';
+                return 'HTML5 (partial)';
+            }
+            return 'HTML4 or XHTML';
+        }
+
+        // ---------- Detect CSS version / level ----------
+        function getCSSVersion() {
+            if (typeof CSS !== 'undefined' && CSS.supports) {
+                if (CSS.supports('display', 'grid')) return 'CSS Grid (Level 3)';
+                if (CSS.supports('transform', 'translate(0)')) return 'CSS3 (Transforms)';
+                if (CSS.supports('border-radius', '5px')) return 'CSS3';
+            }
+            // fallback checks
+            var el = document.createElement('div');
+            if ('borderRadius' in el.style) return 'CSS3';
+            if ('boxShadow' in el.style) return 'CSS3';
+            return 'CSS2.1';
+        }
+
         function gatherInfo() {
-            const ua = navigator.userAgent;
-            const platform = navigator.platform;
-            const language = navigator.language;
-            const cookiesEnabled = navigator.cookieEnabled;
-            const online = navigator.onLine;
-            const hardwareConcurrency = navigator.hardwareConcurrency || 'unknown';
-            const maxTouchPoints = navigator.maxTouchPoints || 0;
+            var ua = navigator.userAgent;
+            var platform = navigator.platform;
+            var language = navigator.language;
+            var cookiesEnabled = navigator.cookieEnabled;
+            var online = navigator.onLine;
+            var hardwareConcurrency = navigator.hardwareConcurrency || 'unknown';
+            var maxTouchPoints = navigator.maxTouchPoints || 0;
             
             // Screen
-            const screenW = screen.width;
-            const screenH = screen.height;
-            const availW = screen.availWidth;
-            const availH = screen.availHeight;
-            const colorDepth = screen.colorDepth;
-            const pixelDepth = screen.pixelDepth;
-            const viewportW = window.innerWidth;
-            const viewportH = window.innerHeight;
-            const devicePixelRatio = window.devicePixelRatio || 1;
+            var screenW = screen.width;
+            var screenH = screen.height;
+            var availW = screen.availWidth;
+            var availH = screen.availHeight;
+            var colorDepth = screen.colorDepth;
+            var pixelDepth = screen.pixelDepth;
+            var viewportW = window.innerWidth;
+            var viewportH = window.innerHeight;
+            var devicePixelRatio = window.devicePixelRatio || 1;
 
             // LocalStorage
-            const lsLength = localStorage.length;
-            const lsKeys = [];
-            for (let i=0; i<lsLength; i++) {
-                const key = localStorage.key(i);
-                lsKeys.push(`${key}: ${localStorage.getItem(key)}`);
-            }
+            var lsLength = 0;
+            var lsKeys = [];
+            try {
+                lsLength = localStorage.length;
+                for (var i = 0; i < lsLength; i++) {
+                    var key = localStorage.key(i);
+                    lsKeys.push(key + ': ' + localStorage.getItem(key));
+                }
+            } catch(e) { lsKeys = ['(storage not accessible)']; }
 
             // JS features
-            const features = {
+            var features = {
                 'Web Worker': !!window.Worker,
                 'Service Worker': 'serviceWorker' in navigator,
                 'WebSocket': !!window.WebSocket,
@@ -210,8 +305,8 @@
                 'ResizeObserver': !!window.ResizeObserver,
                 'MutationObserver': !!window.MutationObserver,
                 'IndexedDB': !!window.indexedDB,
-                'WebGL': (() => {
-                    try { return !!document.createElement('canvas').getContext('webgl'); } catch { return false; }
+                'WebGL': (function() {
+                    try { return !!document.createElement('canvas').getContext('webgl'); } catch(e) { return false; }
                 })(),
                 'AudioContext': !!(window.AudioContext || window.webkitAudioContext),
                 'Geolocation': 'geolocation' in navigator,
@@ -225,80 +320,107 @@
                 'SharedWorker': !!window.SharedWorker,
                 'Performance API': !!window.performance,
                 'Crypto': !!window.crypto,
-                'requestIdleCallback': !!window.requestIdleCallback,
+                'requestIdleCallback': !!window.requestIdleCallback
             };
 
-            // Browser detection
-            let browserName = 'Unknown';
-            if (ua.includes('Firefox')) browserName = 'Firefox';
-            else if (ua.includes('Edg')) browserName = 'Edge';
-            else if (ua.includes('Chrome')) browserName = 'Chrome';
-            else if (ua.includes('Safari')) browserName = 'Safari';
-            else if (ua.includes('Opera') || ua.includes('OPR')) browserName = 'Opera';
-
-            const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+            var browser = getBrowserInfo();
+            var isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+            var jsVer = getJSVersion();
+            var htmlVer = getHTMLVersion();
+            var cssVer = getCSSVersion();
 
             return {
-                ua, platform, language, cookiesEnabled, online, hardwareConcurrency, maxTouchPoints,
-                screenW, screenH, availW, availH, colorDepth, pixelDepth, viewportW, viewportH, devicePixelRatio,
-                lsKeys, features, browserName, isMobile
+                ua: ua, platform: platform, language: language, cookiesEnabled: cookiesEnabled,
+                online: online, hardwareConcurrency: hardwareConcurrency, maxTouchPoints: maxTouchPoints,
+                screenW: screenW, screenH: screenH, availW: availW, availH: availH,
+                colorDepth: colorDepth, pixelDepth: pixelDepth, viewportW: viewportW, viewportH: viewportH,
+                devicePixelRatio: devicePixelRatio, lsKeys: lsKeys, features: features,
+                browser: browser, isMobile: isMobile, jsVer: jsVer, htmlVer: htmlVer, cssVer: cssVer
             };
-        }
-
-        function renderInfo() {
-            const t = i18n[lang];
-            const info = gatherInfo();
-            
-            const featuresHtml = Object.entries(info.features)
-                .map(([name, supported]) => `<div class="info-row"><span class="info-label">${name}:</span><span class="info-value">${supported ? '✓' : '✗'}</span></div>`)
-                .join('');
-
-            const lsHtml = info.lsKeys.length 
-                ? info.lsKeys.map(k => `<div class="info-row"><span class="info-label"></span><span class="info-value">${escapeHtml(k)}</span></div>`).join('')
-                : '<div class="info-row"><span class="info-value">(empty)</span></div>';
-
-            const html = `
-                <div class="section">
-                    <div class="section-title">${t.browser}</div>
-                    <div class="info-row"><span class="info-label">Browser:</span><span class="info-value">${info.browserName} (${info.isMobile ? 'Mobile' : 'Desktop'})</span></div>
-                    <div class="info-row"><span class="info-label">User Agent:</span><span class="info-value">${escapeHtml(info.ua)}</span></div>
-                    <div class="info-row"><span class="info-label">Platform:</span><span class="info-value">${info.platform}</span></div>
-                    <div class="info-row"><span class="info-label">Language:</span><span class="info-value">${info.language}</span></div>
-                    <div class="info-row"><span class="info-label">Online:</span><span class="info-value">${info.online}</span></div>
-                    <div class="info-row"><span class="info-label">Cookies Enabled:</span><span class="info-value">${info.cookiesEnabled}</span></div>
-                    <div class="info-row"><span class="info-label">Hardware Concurrency:</span><span class="info-value">${info.hardwareConcurrency}</span></div>
-                    <div class="info-row"><span class="info-label">Max Touch Points:</span><span class="info-value">${info.maxTouchPoints}</span></div>
-                </div>
-                <div class="section">
-                    <div class="section-title">${t.screen}</div>
-                    <div class="info-row"><span class="info-label">Screen:</span><span class="info-value">${info.screenW} x ${info.screenH}</span></div>
-                    <div class="info-row"><span class="info-label">Available:</span><span class="info-value">${info.availW} x ${info.availH}</span></div>
-                    <div class="info-row"><span class="info-label">Color Depth:</span><span class="info-value">${info.colorDepth} bit</span></div>
-                    <div class="info-row"><span class="info-label">Pixel Depth:</span><span class="info-value">${info.pixelDepth} bit</span></div>
-                    <div class="info-row"><span class="info-label">Viewport:</span><span class="info-value">${info.viewportW} x ${info.viewportH}</span></div>
-                    <div class="info-row"><span class="info-label">Device Pixel Ratio:</span><span class="info-value">${info.devicePixelRatio}</span></div>
-                </div>
-                <div class="section">
-                    <div class="section-title">${t.storage}</div>
-                    ${lsHtml}
-                </div>
-                <div class="section">
-                    <div class="section-title">${t.jsFeatures}</div>
-                    ${featuresHtml}
-                </div>
-                <div class="section">
-                    <div class="section-title">${t.misc}</div>
-                    <div class="info-row"><span class="info-label">Do Not Track:</span><span class="info-value">${navigator.doNotTrack || 'unspecified'}</span></div>
-                    <div class="info-row"><span class="info-label">Time Zone:</span><span class="info-value">${Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
-                    <div class="info-row"><span class="info-label">Referrer:</span><span class="info-value">${document.referrer || '(none)'}</span></div>
-                    <div class="info-row"><span class="info-label">History Length:</span><span class="info-value">${history.length}</span></div>
-                </div>
-            `;
-            document.getElementById('infoContent').innerHTML = html;
         }
 
         function escapeHtml(text) {
-            return String(text).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+            return String(text).replace(/[&<>]/g, function(c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+            });
+        }
+
+        function renderInfo() {
+            var t = i18n[lang];
+            var info = gatherInfo();
+            
+            var featuresHtml = '';
+            var featureKeys = Object.keys(info.features);
+            for (var i = 0; i < featureKeys.length; i++) {
+                var name = featureKeys[i];
+                var supported = info.features[name];
+                featuresHtml += '<div class="info-row"><span class="info-label">' + name + ':</span><span class="info-value">' + (supported ? '✓' : '✗') + '</span></div>';
+            }
+
+            var lsHtml = '';
+            if (info.lsKeys.length) {
+                for (var j = 0; j < info.lsKeys.length; j++) {
+                    lsHtml += '<div class="info-row"><span class="info-label"></span><span class="info-value">' + escapeHtml(info.lsKeys[j]) + '</span></div>';
+                }
+            } else {
+                lsHtml = '<div class="info-row"><span class="info-value">(empty)</span></div>';
+            }
+
+            var html = '';
+            // Versions section (NEW)
+            html += '<div class="section">';
+            html += '<div class="section-title">' + t.versions + '</div>';
+            html += '<div class="info-row"><span class="info-label">' + t.browserLabel + '</span><span class="info-value">' + info.browser.name + ' ' + info.browser.version + ' (' + (info.isMobile ? 'Mobile' : 'Desktop') + ')</span></div>';
+            html += '<div class="info-row"><span class="info-label">' + t.jsVersion + '</span><span class="info-value">' + info.jsVer + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">' + t.htmlVersion + '</span><span class="info-value">' + info.htmlVer + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">' + t.cssVersion + '</span><span class="info-value">' + info.cssVer + '</span></div>';
+            html += '</div>';
+
+            // Browser & OS
+            html += '<div class="section">';
+            html += '<div class="section-title">' + t.browserOs + '</div>';
+            html += '<div class="info-row"><span class="info-label">User Agent:</span><span class="info-value">' + escapeHtml(info.ua) + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Platform:</span><span class="info-value">' + info.platform + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Language:</span><span class="info-value">' + info.language + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Online:</span><span class="info-value">' + info.online + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Cookies Enabled:</span><span class="info-value">' + info.cookiesEnabled + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Hardware Concurrency:</span><span class="info-value">' + info.hardwareConcurrency + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Max Touch Points:</span><span class="info-value">' + info.maxTouchPoints + '</span></div>';
+            html += '</div>';
+
+            // Screen
+            html += '<div class="section">';
+            html += '<div class="section-title">' + t.screen + '</div>';
+            html += '<div class="info-row"><span class="info-label">Screen:</span><span class="info-value">' + info.screenW + ' x ' + info.screenH + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Available:</span><span class="info-value">' + info.availW + ' x ' + info.availH + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Color Depth:</span><span class="info-value">' + info.colorDepth + ' bit</span></div>';
+            html += '<div class="info-row"><span class="info-label">Pixel Depth:</span><span class="info-value">' + info.pixelDepth + ' bit</span></div>';
+            html += '<div class="info-row"><span class="info-label">Viewport:</span><span class="info-value">' + info.viewportW + ' x ' + info.viewportH + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Device Pixel Ratio:</span><span class="info-value">' + info.devicePixelRatio + '</span></div>';
+            html += '</div>';
+
+            // Storage
+            html += '<div class="section">';
+            html += '<div class="section-title">' + t.storage + '</div>';
+            html += lsHtml;
+            html += '</div>';
+
+            // JS Features
+            html += '<div class="section">';
+            html += '<div class="section-title">' + t.jsFeatures + '</div>';
+            html += featuresHtml;
+            html += '</div>';
+
+            // Misc
+            html += '<div class="section">';
+            html += '<div class="section-title">' + t.misc + '</div>';
+            html += '<div class="info-row"><span class="info-label">Do Not Track:</span><span class="info-value">' + (navigator.doNotTrack || 'unspecified') + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Time Zone:</span><span class="info-value">' + (Intl.DateTimeFormat().resolvedOptions().timeZone) + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">Referrer:</span><span class="info-value">' + (document.referrer || '(none)') + '</span></div>';
+            html += '<div class="info-row"><span class="info-label">History Length:</span><span class="info-value">' + history.length + '</span></div>';
+            html += '</div>';
+
+            document.getElementById('infoContent').innerHTML = html;
         }
 
         renderInfo();
