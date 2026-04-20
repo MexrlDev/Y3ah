@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Info · Max Tools</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f7fa;
+            color: #1e293b;
+            padding: 16px 12px 24px;
+            min-height: 100vh;
+            transition: background 0.2s, color 0.2s;
+        }
+        body.dark {
+            background: #000000;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .back-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        body.dark .back-link {
+            color: #60a5fa;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 18px 16px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        body.dark .section {
+            background: #1a1a1a;
+            border-color: #333333;
+        }
+        .section-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 18px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+        body.dark .section-title {
+            border-bottom-color: #333;
+        }
+        .info-row {
+            display: flex;
+            padding: 6px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        body.dark .info-row {
+            border-bottom-color: #2a2a2a;
+        }
+        .info-label {
+            width: 140px;
+            font-weight: 500;
+            color: #64748b;
+        }
+        body.dark .info-label {
+            color: #aaaaaa;
+        }
+        .info-value {
+            flex: 1;
+            word-break: break-word;
+        }
+        pre {
+            background: #f1f5f9;
+            padding: 8px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        body.dark pre {
+            background: #0a0a0a;
+            color: #ddd;
+        }
+        .refresh-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 10px 20px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body class="light">
+<div class="container">
+    <div class="header">
+        <a href="../toolset.html" class="back-link" id="backLink">← Back to Tools</a>
+        <h1 id="title">System Diagnostics</h1>
+    </div>
+
+    <div id="infoContent">Loading...</div>
+    <button class="refresh-btn" id="refreshBtn">Refresh</button>
+</div>
+
+<script>
+    (function() {
+        // Load preferences
+        const savedLang = localStorage.getItem('max-music-lang') || 'en';
+        const savedTheme = localStorage.getItem('max-music-theme') || 'light';
+        const lang = ['en','ru','es'].includes(savedLang) ? savedLang : 'en';
+
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark');
+        }
+
+        // i18n
+        const i18n = {
+            en: {
+                back: '← Back to Tools',
+                title: 'System Diagnostics',
+                browser: 'Browser & OS',
+                screen: 'Screen & Viewport',
+                storage: 'Local Storage',
+                jsFeatures: 'JavaScript Features',
+                misc: 'Miscellaneous',
+                refresh: 'Refresh'
+            },
+            ru: {
+                back: '← Назад к инструментам',
+                title: 'Диагностика системы',
+                browser: 'Браузер и ОС',
+                screen: 'Экран и область просмотра',
+                storage: 'Локальное хранилище',
+                jsFeatures: 'Возможности JavaScript',
+                misc: 'Разное',
+                refresh: 'Обновить'
+            },
+            es: {
+                back: '← Volver a Herramientas',
+                title: 'Diagnóstico del sistema',
+                browser: 'Navegador y SO',
+                screen: 'Pantalla y viewport',
+                storage: 'Almacenamiento local',
+                jsFeatures: 'Características JS',
+                misc: 'Misceláneo',
+                refresh: 'Actualizar'
+            }
+        };
+
+        document.getElementById('backLink').textContent = i18n[lang].back;
+        document.getElementById('title').textContent = i18n[lang].title;
+        document.getElementById('refreshBtn').textContent = i18n[lang].refresh;
+
+        function gatherInfo() {
+            const ua = navigator.userAgent;
+            const platform = navigator.platform;
+            const language = navigator.language;
+            const cookiesEnabled = navigator.cookieEnabled;
+            const online = navigator.onLine;
+            const hardwareConcurrency = navigator.hardwareConcurrency || 'unknown';
+            const maxTouchPoints = navigator.maxTouchPoints || 0;
+            
+            // Screen
+            const screenW = screen.width;
+            const screenH = screen.height;
+            const availW = screen.availWidth;
+            const availH = screen.availHeight;
+            const colorDepth = screen.colorDepth;
+            const pixelDepth = screen.pixelDepth;
+            const viewportW = window.innerWidth;
+            const viewportH = window.innerHeight;
+            const devicePixelRatio = window.devicePixelRatio || 1;
+
+            // LocalStorage
+            const lsLength = localStorage.length;
+            const lsKeys = [];
+            for (let i=0; i<lsLength; i++) {
+                const key = localStorage.key(i);
+                lsKeys.push(`${key}: ${localStorage.getItem(key)}`);
+            }
+
+            // JS features
+            const features = {
+                'Web Worker': !!window.Worker,
+                'Service Worker': 'serviceWorker' in navigator,
+                'WebSocket': !!window.WebSocket,
+                'WebRTC': !!window.RTCPeerConnection,
+                'Fetch API': !!window.fetch,
+                'Promise': !!window.Promise,
+                'Intl': !!window.Intl,
+                'BigInt': typeof BigInt !== 'undefined',
+                'IntersectionObserver': !!window.IntersectionObserver,
+                'ResizeObserver': !!window.ResizeObserver,
+                'MutationObserver': !!window.MutationObserver,
+                'IndexedDB': !!window.indexedDB,
+                'WebGL': (() => {
+                    try { return !!document.createElement('canvas').getContext('webgl'); } catch { return false; }
+                })(),
+                'AudioContext': !!(window.AudioContext || window.webkitAudioContext),
+                'Geolocation': 'geolocation' in navigator,
+                'Notification': 'Notification' in window,
+                'Vibration': 'vibrate' in navigator,
+                'Battery': 'getBattery' in navigator,
+                'Bluetooth': 'bluetooth' in navigator,
+                'USB': 'usb' in navigator,
+                'Payment Request': 'PaymentRequest' in window,
+                'Credential Management': 'credentials' in navigator,
+                'SharedWorker': !!window.SharedWorker,
+                'Performance API': !!window.performance,
+                'Crypto': !!window.crypto,
+                'requestIdleCallback': !!window.requestIdleCallback,
+            };
+
+            // Browser detection
+            let browserName = 'Unknown';
+            if (ua.includes('Firefox')) browserName = 'Firefox';
+            else if (ua.includes('Edg')) browserName = 'Edge';
+            else if (ua.includes('Chrome')) browserName = 'Chrome';
+            else if (ua.includes('Safari')) browserName = 'Safari';
+            else if (ua.includes('Opera') || ua.includes('OPR')) browserName = 'Opera';
+
+            const isMobile = /Mobile|Android|iPhone|iPad|iPod/i.test(ua);
+
+            return {
+                ua, platform, language, cookiesEnabled, online, hardwareConcurrency, maxTouchPoints,
+                screenW, screenH, availW, availH, colorDepth, pixelDepth, viewportW, viewportH, devicePixelRatio,
+                lsKeys, features, browserName, isMobile
+            };
+        }
+
+        function renderInfo() {
+            const t = i18n[lang];
+            const info = gatherInfo();
+            
+            const featuresHtml = Object.entries(info.features)
+                .map(([name, supported]) => `<div class="info-row"><span class="info-label">${name}:</span><span class="info-value">${supported ? '✓' : '✗'}</span></div>`)
+                .join('');
+
+            const lsHtml = info.lsKeys.length 
+                ? info.lsKeys.map(k => `<div class="info-row"><span class="info-label"></span><span class="info-value">${escapeHtml(k)}</span></div>`).join('')
+                : '<div class="info-row"><span class="info-value">(empty)</span></div>';
+
+            const html = `
+                <div class="section">
+                    <div class="section-title">${t.browser}</div>
+                    <div class="info-row"><span class="info-label">Browser:</span><span class="info-value">${info.browserName} (${info.isMobile ? 'Mobile' : 'Desktop'})</span></div>
+                    <div class="info-row"><span class="info-label">User Agent:</span><span class="info-value">${escapeHtml(info.ua)}</span></div>
+                    <div class="info-row"><span class="info-label">Platform:</span><span class="info-value">${info.platform}</span></div>
+                    <div class="info-row"><span class="info-label">Language:</span><span class="info-value">${info.language}</span></div>
+                    <div class="info-row"><span class="info-label">Online:</span><span class="info-value">${info.online}</span></div>
+                    <div class="info-row"><span class="info-label">Cookies Enabled:</span><span class="info-value">${info.cookiesEnabled}</span></div>
+                    <div class="info-row"><span class="info-label">Hardware Concurrency:</span><span class="info-value">${info.hardwareConcurrency}</span></div>
+                    <div class="info-row"><span class="info-label">Max Touch Points:</span><span class="info-value">${info.maxTouchPoints}</span></div>
+                </div>
+                <div class="section">
+                    <div class="section-title">${t.screen}</div>
+                    <div class="info-row"><span class="info-label">Screen:</span><span class="info-value">${info.screenW} x ${info.screenH}</span></div>
+                    <div class="info-row"><span class="info-label">Available:</span><span class="info-value">${info.availW} x ${info.availH}</span></div>
+                    <div class="info-row"><span class="info-label">Color Depth:</span><span class="info-value">${info.colorDepth} bit</span></div>
+                    <div class="info-row"><span class="info-label">Pixel Depth:</span><span class="info-value">${info.pixelDepth} bit</span></div>
+                    <div class="info-row"><span class="info-label">Viewport:</span><span class="info-value">${info.viewportW} x ${info.viewportH}</span></div>
+                    <div class="info-row"><span class="info-label">Device Pixel Ratio:</span><span class="info-value">${info.devicePixelRatio}</span></div>
+                </div>
+                <div class="section">
+                    <div class="section-title">${t.storage}</div>
+                    ${lsHtml}
+                </div>
+                <div class="section">
+                    <div class="section-title">${t.jsFeatures}</div>
+                    ${featuresHtml}
+                </div>
+                <div class="section">
+                    <div class="section-title">${t.misc}</div>
+                    <div class="info-row"><span class="info-label">Do Not Track:</span><span class="info-value">${navigator.doNotTrack || 'unspecified'}</span></div>
+                    <div class="info-row"><span class="info-label">Time Zone:</span><span class="info-value">${Intl.DateTimeFormat().resolvedOptions().timeZone}</span></div>
+                    <div class="info-row"><span class="info-label">Referrer:</span><span class="info-value">${document.referrer || '(none)'}</span></div>
+                    <div class="info-row"><span class="info-label">History Length:</span><span class="info-value">${history.length}</span></div>
+                </div>
+            `;
+            document.getElementById('infoContent').innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            return String(text).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+        }
+
+        renderInfo();
+        document.getElementById('refreshBtn').addEventListener('click', renderInfo);
+    })();
+</script>
+</body>
+</html>
