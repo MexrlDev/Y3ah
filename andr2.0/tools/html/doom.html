@@ -83,13 +83,13 @@
             font-size: 18px;
             z-index: 100;
             pointer-events: none;
+            text-align: center;
         }
         body.light .loading {
             background: rgba(255,255,255,0.9);
             color: black;
             border: 1px solid #ccc;
         }
-        /* On‑screen gamepad */
         .gamepad {
             position: absolute;
             bottom: 20px;
@@ -162,28 +162,29 @@
             height: 50px;
             font-size: 18px;
         }
-        .keyboard-hint {
-            color: #aaa;
-            font-size: 12px;
-            margin-top: 8px;
-            text-align: center;
-        }
         .hidden {
             display: none !important;
+        }
+        .note {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body class="dark">
 <div class="toolbar">
     <a href="../toolset.html" class="back-link" id="backLink">← Tools</a>
-    <h1 id="title">DOOM (Shareware)</h1>
+    <h1 id="title">DOOM</h1>
 </div>
 
 <div id="game-area">
     <div id="dos-container"></div>
-    <div id="loading-message" class="loading">Loading DOOM...</div>
+    <div id="loading-message" class="loading">
+        <span id="loadingText">Loading DOOM...</span>
+        <div class="note" id="customNote"></div>
+    </div>
     
-    <!-- On-screen controls -->
     <div class="gamepad" id="gamepadPanel">
         <div class="dpad">
             <div class="dpad-row">
@@ -222,28 +223,58 @@
         }
 
         var i18n = {
-            en: { back: '← Tools', title: 'DOOM (Shareware)', loading: 'Loading DOOM...', error: 'Failed to load. Tap to retry.' },
-            ru: { back: '← Инструменты', title: 'DOOM (Shareware)', loading: 'Загрузка DOOM...', error: 'Ошибка загрузки. Нажмите для повтора.' },
-            es: { back: '← Herramientas', title: 'DOOM (Shareware)', loading: 'Cargando DOOM...', error: 'Error al cargar. Toca para reintentar.' }
+            en: { 
+                back: '← Tools', 
+                title: 'DOOM', 
+                loading: 'Loading DOOM...', 
+                error: 'Failed to load. Tap to retry.',
+                customNote: 'Using custom WAD'
+            },
+            ru: { 
+                back: '← Инструменты', 
+                title: 'DOOM', 
+                loading: 'Загрузка DOOM...', 
+                error: 'Ошибка загрузки. Нажмите для повтора.',
+                customNote: 'Используется свой WAD'
+            },
+            es: { 
+                back: '← Herramientas', 
+                title: 'DOOM', 
+                loading: 'Cargando DOOM...', 
+                error: 'Error al cargar. Toca para reintentar.',
+                customNote: 'Usando WAD personalizado'
+            }
         };
         document.getElementById('backLink').textContent = i18n[lang].back;
         document.getElementById('title').textContent = i18n[lang].title;
-        var loadingEl = document.getElementById('loading-message');
-        loadingEl.textContent = i18n[lang].loading;
+        var loadingText = document.getElementById('loadingText');
+        var customNote = document.getElementById('customNote');
+        loadingText.textContent = i18n[lang].loading;
 
         var container = document.getElementById('dos-container');
         var runtimeInstance = null;
 
-        // ---------- Load js-dos with reliable bundle ----------
+        // ---------- Determine which bundle to load ----------
+        // Check for custom ZIP URL via query parameter: ?zip=URL
+        var params = new URLSearchParams(window.location.search);
+        var customZip = params.get('zip');
+        
+        // Default shareware bundle (official)
+        var DEFAULT_BUNDLE = 'https://cdn.dos.zone/custom/dos/doom.jsdos';
+        
+        var bundleUrl = customZip || DEFAULT_BUNDLE;
+        if (customZip) {
+            customNote.textContent = i18n[lang].customNote + ': ' + decodeURIComponent(customZip).split('/').pop();
+        }
+
+        // ---------- Load js-dos ----------
         function initDos() {
             if (typeof Dos === 'undefined') {
                 var script = document.createElement('script');
                 script.src = 'https://js-dos.com/v8/dist/js-dos.js';
-                script.onload = function() {
-                    startEmulator();
-                };
+                script.onload = startEmulator;
                 script.onerror = function() {
-                    loadingEl.textContent = 'Cannot load js-dos library.';
+                    loadingText.textContent = 'Cannot load js-dos library.';
                 };
                 document.head.appendChild(script);
             } else {
@@ -251,28 +282,33 @@
             }
         }
 
-function startEmulator() {
-    Dos(container, {
-        url: "https://cdn.dos.zone/custom/dos/doom.jsdos",
-        theme: savedTheme === 'light' ? 'light' : 'dark',
-        backend: "webgl",
-        autoStart: true,
-        kiosk: true,
-    }).then(function(runtime) {
-        runtimeInstance = runtime;
-        loadingEl.style.display = 'none';
-        document.getElementById('gamepadPanel').classList.remove('hidden');
-    }).catch(function(err) {
-        console.error(err);
-        loadingEl.textContent = i18n[lang].error;
-    });
-}
+        function startEmulator() {
+            Dos(container, {
+                url: bundleUrl,
+                theme: savedTheme === 'light' ? 'light' : 'dark',
+                backend: 'webgl',
+                autoStart: true,
+                kiosk: true,
+            }).then(function(runtime) {
+                runtimeInstance = runtime;
+                document.getElementById('loading-message').style.display = 'none';
+                document.getElementById('gamepadPanel').classList.remove('hidden');
+            }).catch(function(err) {
+                console.error(err);
+                loadingText.textContent = i18n[lang].error;
+                // Allow tap to retry
+                loadingText.style.pointerEvents = 'auto';
+                loadingText.style.cursor = 'pointer';
+                loadingText.addEventListener('click', function() {
+                    location.reload();
+                });
+            });
+        }
 
-        // ---------- On‑screen button handling (send keys to emulator) ----------
+        // ---------- On‑screen button handling ----------
         function sendKeyToDos(keyCode) {
             if (!runtimeInstance) return;
             try {
-                // js-dos v8 API: sendKeyPress or sendKey
                 if (runtimeInstance.sendKeyPress) {
                     runtimeInstance.sendKeyPress(keyCode);
                 } else if (runtimeInstance.sendKey) {
@@ -293,7 +329,6 @@ function startEmulator() {
                     e.preventDefault();
                     var key = this.getAttribute('data-key');
                     sendKeyToDos(key);
-                    // Visual feedback
                     this.style.background = '#3b82f6';
                 });
                 btn.addEventListener('touchend', function(e) {
@@ -327,8 +362,6 @@ function startEmulator() {
         // Start everything
         initDos();
         attachControls();
-
-        // Also allow three-finger tap to toggle keyboard (built into js-dos)
     })();
 </script>
 </body>
