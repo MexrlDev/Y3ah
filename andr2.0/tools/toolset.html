@@ -58,7 +58,7 @@
             border-color: #333333;
         }
         .tool-list {
-            max-height: 300px;          /* 5 items * 60px approx */
+            max-height: 300px;
             overflow-y: auto;
             scrollbar-width: thin;
         }
@@ -104,82 +104,62 @@
     </div>
 
     <div class="tool-list-container">
-        <div class="tool-list" id="toolList">
-            <!-- Dynamically populated -->
-        </div>
+        <div class="tool-list" id="toolList"></div>
     </div>
 
-    <div class="footer" id="footerNote">
-        Select a tool to open
-    </div>
+    <div class="footer" id="footerNote">Select a tool to open</div>
 </div>
 
 <script>
     (function() {
-        "use strict";
-
-        // ----- Language & Theme (from localStorage) -----
-        const i18n = {
-            en: {
-                back: '← Back',
-                title: 'Tools',
-                footer: 'Select a tool to open',
-                empty: 'No tools available'
-            },
-            ru: {
-                back: '← Назад',
-                title: 'Инструменты',
-                footer: 'Выберите инструмент',
-                empty: 'Нет доступных инструментов'
-            },
-            es: {
-                back: '← Volver',
-                title: 'Herramientas',
-                footer: 'Selecciona una herramienta',
-                empty: 'No hay herramientas disponibles'
-            }
-        };
-
-        // ----- Tools list (manually add entries here) -----
-        const TOOLS = [
-            { name: 'System Info', path: 'html/system-info.html' },
-            // Add more tools below:
-            // { name: 'Another Tool', path: 'html/another.html' },
-        ];
-
-        // Load preferences
-        const savedLang = localStorage.getItem('max-music-lang') || 'en';
-        const savedTheme = localStorage.getItem('max-music-theme') || 'light';
-        const lang = ['en','ru','es'].includes(savedLang) ? savedLang : 'en';
+        // Safe localStorage
+        function storageGet(key) {
+            try { return localStorage.getItem(key); } catch(e) { return null; }
+        }
         
-        // Apply theme
+        // Language & Theme
+        var savedLang = storageGet('max-music-lang') || 'en';
+        var savedTheme = storageGet('max-music-theme') || 'light';
+        var lang = (['en','ru','es'].indexOf(savedLang) !== -1) ? savedLang : 'en';
+        
         if (savedTheme === 'dark') {
             document.body.classList.add('dark');
             document.body.classList.remove('light');
         }
 
-        // Apply language strings
+        var i18n = {
+            en: { back: '← Back', title: 'Tools', footer: 'Select a tool to open', empty: 'No tools available' },
+            ru: { back: '← Назад', title: 'Инструменты', footer: 'Выберите инструмент', empty: 'Нет доступных инструментов' },
+            es: { back: '← Volver', title: 'Herramientas', footer: 'Selecciona una herramienta', empty: 'No hay herramientas disponibles' }
+        };
+
         document.getElementById('backLink').textContent = i18n[lang].back;
         document.getElementById('pageTitle').textContent = i18n[lang].title;
         document.getElementById('footerNote').textContent = i18n[lang].footer;
         document.documentElement.lang = lang;
 
-        // Render tool list
-        const toolListEl = document.getElementById('toolList');
-        if (TOOLS.length === 0) {
-            toolListEl.innerHTML = `<div class="empty-message">${i18n[lang].empty}</div>`;
-        } else {
-            let html = '';
-            TOOLS.forEach(tool => {
-                html += `<a class="tool-item" href="${encodeURI(tool.path)}">${escapeHtml(tool.name)}</a>`;
-            });
-            toolListEl.innerHTML = html;
-        }
+        // Tools list (manually add entries)
+        var TOOLS = [
+            { name: 'System Info', path: 'html/system-info.html' }
+            // Add more tools here
+        ];
 
         function escapeHtml(text) {
             return String(text).replace(/[&<>"]/g, function(c) {
                 return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
             });
+        }
+
+        var toolListEl = document.getElementById('toolList');
+        if (TOOLS.length === 0) {
+            toolListEl.innerHTML = '<div class="empty-message">' + i18n[lang].empty + '</div>';
+        } else {
+            var html = '';
+            for (var i = 0; i < TOOLS.length; i++) {
+                var tool = TOOLS[i];
+                html += '<a class="tool-item" href="' + encodeURI(tool.path) + '">' + escapeHtml(tool.name) + '</a>';
+            }
+            toolListEl.innerHTML = html;
         }
     })();
 </script>
