@@ -209,6 +209,15 @@
             pointer-events: none;
             z-index: 150;
         }
+        /* Error message style */
+        .loading.error {
+            background: rgba(180, 30, 30, 0.9);
+            color: white;
+        }
+        body.light .loading.error {
+            background: rgba(200, 40, 40, 0.9);
+            color: white;
+        }
     </style>
 </head>
 <body class="dark">
@@ -247,6 +256,7 @@
     </div>
 </div>
 
+<!-- js-dos API (latest stable) -->
 <script type="text/javascript" src="https://js-dos.com/cdn/js-dos-api.js"></script>
 <script>
     (function() {
@@ -266,9 +276,30 @@
         }
 
         var i18n = {
-            en: { back: '← Tools', title: 'DOOM', loading: 'Loading DOOM...', fullscreen: '⛶ Fullscreen', error: 'Failed to load DOOM (check connection)' },
-            ru: { back: '← Инструменты', title: 'DOOM', loading: 'Загрузка DOOM...', fullscreen: '⛶ На весь экран', error: 'Не удалось загрузить DOOM (проверьте соединение)' },
-            es: { back: '← Herramientas', title: 'DOOM', loading: 'Cargando DOOM...', fullscreen: '⛶ Pantalla completa', error: 'Error al cargar DOOM (revise la conexión)' }
+            en: { 
+                back: '← Tools', 
+                title: 'DOOM', 
+                loading: 'Loading DOOM...', 
+                fullscreen: '⛶ Fullscreen', 
+                error: 'Failed to load DOOM. Check connection.',
+                timeout: 'Loading taking too long. Try refreshing.'
+            },
+            ru: { 
+                back: '← Инструменты', 
+                title: 'DOOM', 
+                loading: 'Загрузка DOOM...', 
+                fullscreen: '⛶ На весь экран', 
+                error: 'Не удалось загрузить DOOM. Проверьте соединение.',
+                timeout: 'Загрузка занимает слишком много времени. Попробуйте обновить.'
+            },
+            es: { 
+                back: '← Herramientas', 
+                title: 'DOOM', 
+                loading: 'Cargando DOOM...', 
+                fullscreen: '⛶ Pantalla completa', 
+                error: 'Error al cargar DOOM. Revise la conexión.',
+                timeout: 'La carga está tardando demasiado. Intente recargar.'
+            }
         };
         document.getElementById('backLink').textContent = i18n[lang].back;
         document.getElementById('title').textContent = i18n[lang].title;
@@ -276,58 +307,80 @@
         document.getElementById('fullscreenBtn').textContent = i18n[lang].fullscreen;
 
         var loadingEl = document.getElementById('loading-message');
+        var loadingTextEl = document.getElementById('loadingText');
         var gamepadPanel = document.getElementById('gamepadPanel');
         var dosboxInstance = null;
+        var loadTimedOut = false;
 
-        // ---------- RELIABLE DOOM BUNDLE (js-dos official) ----------
-        // This is the exact same bundle used in the working example.
-        // It's hosted on the same CDN and known to work.
+        // ---------- RELIABLE DOOM BUNDLE ----------
+        // Official js-dos CDN URL (works on all modern browsers)
         var DOOM_ZIP = 'https://js-dos.com/cdn/DOOM-@evilution.zip';
-
-        // Allow override via ?zip=... (still optional)
+        
+        // Allow override via ?zip=...
         var params = new URLSearchParams(window.location.search);
         var customZip = params.get('zip');
         if (customZip) DOOM_ZIP = customZip;
 
-        // ---------- Timeout fallback ----------
-        var loadTimeout = setTimeout(function() {
-            loadingEl.querySelector('#loadingText').textContent = i18n[lang].error;
-            console.error('DOOM load timeout – ZIP may be unreachable.');
-        }, 15000);
+        // ---------- Error & Timeout Handling ----------
+        function showError(message) {
+            if (loadTimedOut) return;
+            loadTimedOut = true;
+            loadingEl.classList.add('error');
+            loadingTextEl.textContent = message;
+            console.error('DOOM loader error:', message);
+        }
 
-        // ---------- Init js-dos (with robust timing) ----------
+        var loadTimeout = setTimeout(function() {
+            showError(i18n[lang].timeout);
+        }, 20000); // 20 seconds max
+
+        // ---------- Initialize js-dos with iOS memory fix ----------
         function initDosbox() {
             if (typeof Dosbox === 'undefined') {
-                loadingEl.querySelector('#loadingText').textContent = 'js-dos API failed to load';
+                showError('js-dos API failed to load');
                 clearTimeout(loadTimeout);
                 return;
             }
 
-            dosboxInstance = new Dosbox({
+            // The crucial iOS fix: limit WebAssembly memory
+            var dosboxConfig = {
                 id: "dosbox",
                 onload: function(dosbox) {
-                    // Wait a tiny bit for DOM/emulator to settle before running
+                    // Small delay ensures DOM/emulator is fully ready
                     setTimeout(function() {
-                        // Use the official run() method. It returns a promise on newer versions.
-                        var runPromise = dosbox.run(DOOM_ZIP, "./doom");
-                        if (runPromise && typeof runPromise.catch === 'function') {
-                            runPromise.catch(function(e) {
-                                clearTimeout(loadTimeout);
-                                loadingEl.querySelector('#loadingText').textContent = i18n[lang].error;
-                                console.error('dosbox.run() failed:', e);
-                            });
+                        try {
+                            var runPromise = dosbox.run(DOOM_ZIP, "./doom");
+                            // If promise is returned, catch errors
+                            if (runPromise && typeof runPromise.catch === 'function') {
+                                runPromise.catch(function(e) {
+                                    showError(i18n[lang].error + ' (Network)');
+                                    console.error('dosbox.run() failed:', e);
+                                });
+                            }
+                        } catch (e) {
+                            showError(i18n[lang].error + ' (Exception)');
+                            console.error('Exception during run():', e);
                         }
-                        // Gamepad can be shown once run() is called; we'll also show when emulator starts
-                        // but keep hidden until then.
-                    }, 200);
+                    }, 300);
                 },
                 onrun: function(dosbox, app) {
                     clearTimeout(loadTimeout);
                     console.log("DOOM is now running");
                     loadingEl.style.display = 'none';
                     gamepadPanel.classList.remove('hidden');
+                },
+                // ===== iOS MEMORY FIX (CRITICAL) =====
+                emulator: {
+                    wasmMemoryOptions: {
+                        initial: 64,   // 64 MB initial (works on iOS)
+                        maximum: 128   // 128 MB maximum
+                    }
+                    // Alternative for older js-dos versions:
+                    // memoryLimit: 128
                 }
-            });
+            };
+
+            dosboxInstance = new Dosbox(dosboxConfig);
         }
 
         // ---------- Fullscreen ----------
@@ -336,20 +389,26 @@
                 dosboxInstance.requestFullScreen();
             } else {
                 var el = document.getElementById('dosbox-container');
-                if (el.requestFullscreen) el.requestFullscreen();
+                if (el.requestFullscreen) {
+                    el.requestFullscreen();
+                } else if (el.webkitRequestFullscreen) {
+                    el.webkitRequestFullscreen();
+                } else if (el.mozRequestFullScreen) {
+                    el.mozRequestFullScreen();
+                } else if (el.msRequestFullscreen) {
+                    el.msRequestFullscreen();
+                }
             }
         });
 
         // ---------- On‑screen key injection ----------
         function sendKey(keyCode) {
             if (!dosboxInstance) return;
-            // Try both known API methods
             if (typeof dosboxInstance.sendKey === 'function') {
                 dosboxInstance.sendKey(keyCode);
             } else if (typeof dosboxInstance.sendKeyPress === 'function') {
                 dosboxInstance.sendKeyPress(keyCode);
             }
-            // Fallback: user can use three-finger tap for virtual keyboard
         }
 
         function attachControls() {
