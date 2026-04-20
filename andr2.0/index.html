@@ -100,21 +100,30 @@
             color: #0369a1;
             font-size: 14px;
             text-align: center;
+            transition: background 0.2s, color 0.2s;
+        }
+        .status-message.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .status-message.success {
+            background: #dcfce7;
+            color: #166534;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Music</h1>
-        <p>Your music library</p>
+        <h1>🎵 Max Music</h1>
+        <p>Your offline music library</p>
     </div>
 
     <div id="status" class="status-message">
-        Ready to download
+        ⚡ Loading catalog...
     </div>
 
     <div class="song-list" id="songList">
-        <!-- Songs will be injected here by JavaScript -->
+        <!-- Songs will be injected here -->
     </div>
 
     <div class="footer">
@@ -123,16 +132,23 @@
 
     <script>
         // ==============================================
-        // CONFIGURATION – Update with your actual song list
+        // SONG CATALOG – Add or remove songs here
         // ==============================================
         const SONGS = [
-     {
-    "id": "song1",
-    "title": "She's a Big Boy",
-    "artist": "Artist Name",
-    "filename": "She_s_a_big_boy.mp3",
-    "cover": "she_big_boy.jpg"
-     }     
+            {
+                id: "song1",
+                title: "She's a Big Boy",
+                artist: "Artist Name",
+                filename: "She_s_a_big_boy.mp3",
+                cover: "IMG_7315.jpg"     // optional, not displayed in this version
+            },
+            // Add more songs below:
+            // {
+            //     id: "song2",
+            //     title: "Another Song",
+            //     artist: "Another Artist",
+            //     filename: "another_song.mp3"
+            // }
         ];
 
         // ==============================================
@@ -142,6 +158,12 @@
         const statusEl = document.getElementById('status');
 
         function renderSongs() {
+            if (!SONGS.length) {
+                songListEl.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">No songs available</div>';
+                statusEl.textContent = '📭 Catalog is empty';
+                return;
+            }
+
             let html = '';
             SONGS.forEach(song => {
                 html += `
@@ -162,9 +184,12 @@
             document.querySelectorAll('.download-btn').forEach(btn => {
                 btn.addEventListener('click', onDownloadClick);
             });
+
+            statusEl.textContent = `✅ ${SONGS.length} song${SONGS.length > 1 ? 's' : ''} available — choose one to download`;
+            statusEl.classList.add('success');
         }
 
-        // Simple escape for HTML attributes
+        // Simple escape to prevent XSS
         function escapeHtml(text) {
             if (!text) return '';
             return String(text)
@@ -176,12 +201,18 @@
         }
 
         // ==============================================
-        // DOWNLOAD HANDLER – Works with your patched app
+        // DOWNLOAD HANDLER – Triggers app's native download
         // ==============================================
         function onDownloadClick(event) {
             const btn = event.currentTarget;
             const filename = btn.getAttribute('data-filename');
             const title = btn.getAttribute('data-title');
+
+            if (!filename) {
+                statusEl.textContent = '⚠️ No file specified for this song';
+                statusEl.classList.add('error');
+                return;
+            }
 
             // Prevent double-click
             if (btn.disabled) return;
@@ -190,45 +221,30 @@
             btn.textContent = 'Starting...';
 
             statusEl.textContent = `⏳ Preparing download: ${title}`;
+            statusEl.className = 'status-message';
             statusEl.style.background = '#fef9c3';
             statusEl.style.color = '#854d0e';
 
-            // ==============================================
-            // IMPORTANT: This URL pattern triggers the app's native downloader
-            // The smali code in BaseFragment$WebBrowser intercepts any URL
-            // containing "download.php" and handles the download.
-            // ==============================================
+            // Build the download URL – the app intercepts any URL containing "download.php"
             const downloadUrl = `http://shuhayda.com/download.php?file=${encodeURIComponent(filename)}`;
 
-            // Attempt to navigate to the download URL.
-            // The WebView will intercept this and start the native download.
+            // Navigate to trigger the download interception
             window.location.href = downloadUrl;
 
-            // Reset button after a short delay (in case download fails silently)
+            // Reset button after a timeout (in case download fails silently)
             setTimeout(() => {
                 if (btn.disabled) {
                     btn.disabled = false;
                     btn.classList.remove('loading');
                     btn.textContent = 'Download';
                     statusEl.textContent = '⚠️ Download did not start? Tap again';
-                    statusEl.style.background = '#fee2e2';
-                    statusEl.style.color = '#991b1b';
+                    statusEl.className = 'status-message error';
                 }
             }, 3000);
-
-            // Also provide a fallback: if the app doesn't intercept,
-            // the browser would try to load the URL. But we assume the app works.
         }
 
-        // Optional: Listen for messages from the app (if it uses JavaScript interface)
-        // This is not required but can be used for advanced feedback.
-        window.addEventListener('load', () => {
-            renderSongs();
-            statusEl.textContent = '✅ Ready — choose a song to download';
-        });
-
-        // If the app calls window.downloadStarted() or similar, we can update UI.
-        // For now, keep it simple.
+        // Start everything when page loads
+        window.addEventListener('DOMContentLoaded', renderSongs);
     </script>
 </body>
 </html>
