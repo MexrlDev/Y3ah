@@ -18,6 +18,35 @@
             display: flex;
             flex-direction: column;
             padding: 16px 12px 24px;
+            transition: background 0.2s, color 0.2s;
+        }
+        body.dark {
+            background: #000000;
+            color: #ffffff;
+        }
+        body.dark .player-container {
+            background: #1a1a1a;
+            border-color: #333333;
+        }
+        body.dark .song-title {
+            color: #ffffff;
+        }
+        body.dark .song-artist,
+        body.dark .lang-indicator,
+        body.dark .player-footer {
+            color: #cccccc;
+        }
+        body.dark .cover-placeholder {
+            background: #0a0a0a;
+            color: #cccccc;
+        }
+        body.dark .back-link {
+            color: #60a5fa;
+        }
+        body.dark .theme-toggle-player {
+            border-color: #444444;
+            color: #ffffff;
+            background: #1a1a1a;
         }
         .player-container {
             max-width: 480px;
@@ -29,13 +58,26 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.06);
             border: 1px solid #e2e8f0;
         }
-        .back-link {
-            display: inline-block;
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 18px;
+        }
+        .back-link {
             color: #3b82f6;
             text-decoration: none;
             font-weight: 500;
             font-size: 15px;
+        }
+        .theme-toggle-player {
+            background: transparent;
+            border: 1px solid #cbd5e1;
+            border-radius: 30px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            color: inherit;
         }
         .cover-wrapper {
             width: 100%;
@@ -45,6 +87,10 @@
             background: #eef2ff;
             margin-bottom: 20px;
             border: 1px solid #e2e8f0;
+        }
+        body.dark .cover-wrapper {
+            background: #0a0a0a;
+            border-color: #333333;
         }
         .cover-img {
             width: 100%;
@@ -95,10 +141,12 @@
         }
     </style>
 </head>
-<body>
-
+<body class="light">
 <div class="player-container">
-    <a href="index.html" class="back-link" id="backLink">← Back to library</a>
+    <div class="player-header">
+        <a href="index.html" class="back-link" id="backLink">← Back to library</a>
+        <button class="theme-toggle-player" id="playerThemeToggle">Dark</button>
+    </div>
     <div class="lang-indicator" id="langIndicator"></div>
     
     <div class="cover-wrapper">
@@ -120,29 +168,33 @@
 
         const RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
 
-        // i18n for player (English, Russian, Spanish)
         const i18n = {
             en: {
                 back: '← Back to library',
                 noCover: 'No cover',
                 footer: 'Streaming from raw source',
-                langDisplay: 'Interface: English'
+                langDisplay: 'Interface: English',
+                themeDark: 'Dark',
+                themeLight: 'Light'
             },
             ru: {
                 back: '← Назад в библиотеку',
                 noCover: 'Без обложки',
                 footer: 'Потоковая передача',
-                langDisplay: 'Язык: Русский'
+                langDisplay: 'Язык: Русский',
+                themeDark: 'Тёмная',
+                themeLight: 'Светлая'
             },
             es: {
                 back: '← Volver a la biblioteca',
                 noCover: 'Sin portada',
                 footer: 'Transmision desde fuente',
-                langDisplay: 'Idioma: Espanol'
+                langDisplay: 'Idioma: Espanol',
+                themeDark: 'Oscuro',
+                themeLight: 'Claro'
             }
         };
 
-        // Get URL params
         const params = new URLSearchParams(window.location.search);
         const title = params.get('title') || 'Unknown Title';
         const artist = params.get('artist') || 'Unknown Artist';
@@ -150,8 +202,9 @@
         const cover = params.get('cover') || '';
         let langParam = params.get('lang') || 'en';
         if (!['en', 'ru', 'es'].includes(langParam)) langParam = 'en';
+        const themeParam = params.get('theme') || 'light';
 
-        // DOM
+        const body = document.body;
         const backLink = document.getElementById('backLink');
         const langIndicator = document.getElementById('langIndicator');
         const songTitleEl = document.getElementById('songTitle');
@@ -160,6 +213,32 @@
         const coverPlaceholder = document.getElementById('coverPlaceholder');
         const audioPlayer = document.getElementById('audioPlayer');
         const footerNote = document.getElementById('footerNote');
+        const playerThemeToggle = document.getElementById('playerThemeToggle');
+
+        function applyTheme(isDark) {
+            if (isDark) {
+                body.classList.add('dark');
+                body.classList.remove('light');
+            } else {
+                body.classList.remove('dark');
+                body.classList.add('light');
+            }
+            const t = i18n[langParam];
+            playerThemeToggle.textContent = isDark ? t.themeLight : t.themeDark;
+            localStorage.setItem('max-music-theme', isDark ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('max-music-theme');
+            if (saved) {
+                applyTheme(saved === 'dark');
+            } else if (themeParam) {
+                applyTheme(themeParam === 'dark');
+            } else {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                applyTheme(prefersDark);
+            }
+        }
 
         function applyLanguage(lang) {
             const t = i18n[lang];
@@ -168,23 +247,22 @@
             footerNote.textContent = t.footer;
             langIndicator.textContent = t.langDisplay;
             document.documentElement.lang = lang;
+            const isDark = body.classList.contains('dark');
+            playerThemeToggle.textContent = isDark ? t.themeLight : t.themeDark;
         }
 
         applyLanguage(langParam);
+        initTheme();
 
         songTitleEl.textContent = title;
         songArtistEl.textContent = artist;
 
         if (file) {
-            const audioUrl = RAW_BASE_URL + encodeURIComponent(file);
-            audioPlayer.src = audioUrl;
-        } else {
-            audioPlayer.src = '';
+            audioPlayer.src = RAW_BASE_URL + encodeURIComponent(file);
         }
 
         if (cover) {
-            const coverUrl = RAW_BASE_URL + encodeURIComponent(cover);
-            coverImg.src = coverUrl;
+            coverImg.src = RAW_BASE_URL + encodeURIComponent(cover);
             coverImg.style.display = 'block';
             coverPlaceholder.style.display = 'none';
         } else {
@@ -198,6 +276,17 @@
         });
 
         backLink.href = 'index.html';
+
+        playerThemeToggle.addEventListener('click', () => {
+            const isDark = body.classList.contains('dark');
+            applyTheme(!isDark);
+        });
+
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('max-music-theme')) {
+                applyTheme(e.matches);
+            }
+        });
     })();
 </script>
 </body>
