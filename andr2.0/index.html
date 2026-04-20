@@ -18,8 +18,14 @@
             min-height: 100vh;
         }
         .header {
-            margin-bottom: 24px;
-            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header-titles {
+            flex: 1;
         }
         .header h1 {
             font-size: 28px;
@@ -30,7 +36,23 @@
         .header p {
             font-size: 14px;
             color: #64748b;
-            margin-top: 6px;
+            margin-top: 4px;
+        }
+        .lang-btn {
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 30px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e293b;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            transition: all 0.2s;
+            margin-left: 12px;
+        }
+        .lang-btn:active {
+            background: #f1f5f9;
         }
         .song-list {
             display: flex;
@@ -45,11 +67,12 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            transition: all 0.2s ease;
             border: 1px solid #e2e8f0;
+            flex-wrap: wrap;
         }
         .song-info {
             flex: 1;
+            min-width: 140px;
         }
         .song-title {
             font-weight: 600;
@@ -61,39 +84,49 @@
             font-size: 14px;
             color: #64748b;
         }
-        .download-btn {
-            background: #3b82f6;
-            color: white;
-            border: none;
+        .song-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            background: white;
+            border: 1px solid #cbd5e1;
             border-radius: 40px;
-            padding: 10px 18px;
+            padding: 10px 16px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(59,130,246,0.2);
-            transition: background 0.2s, transform 0.1s;
-            border: 1px solid rgba(255,255,255,0.1);
-            min-width: 90px;
+            transition: all 0.2s;
+            min-width: 80px;
             text-align: center;
+            color: #1e293b;
         }
-        .download-btn:active {
+        .play-btn {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 4px rgba(59,130,246,0.2);
+        }
+        .play-btn:active {
             background: #2563eb;
             transform: scale(0.96);
         }
+        .download-btn {
+            background: white;
+            border-color: #cbd5e1;
+        }
+        .download-btn:active {
+            background: #f8fafc;
+            transform: scale(0.96);
+        }
         .download-btn.loading {
-            background: #94a3b8;
+            opacity: 0.6;
             pointer-events: none;
         }
-        .footer {
-            margin-top: 32px;
-            text-align: center;
-            font-size: 12px;
-            color: #94a3b8;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 20px;
-        }
         .status-message {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
             padding: 10px 14px;
             border-radius: 40px;
             background: #e0f2fe;
@@ -110,91 +143,131 @@
             background: #dcfce7;
             color: #166534;
         }
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+        .cover-thumb {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 12px;
+            background: #e2e8f0;
+        }
+        .song-card-left {
+            display: flex;
+            align-items: center;
+            flex: 2;
+        }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🎵 Max Music</h1>
-        <p>Your offline music library</p>
-    </div>
 
-    <div id="status" class="status-message">
-        ⚡ Loading catalog...
+<div class="header">
+    <div class="header-titles">
+        <h1 id="mainTitle">Max Music</h1>
+        <p id="mainSub">Your offline music library</p>
     </div>
+    <button class="lang-btn" id="langToggle">RU</button>
+</div>
 
-    <div class="song-list" id="songList">
-        <!-- Songs will be injected here -->
-    </div>
+<div id="status" class="status-message">
+    Loading catalog...
+</div>
 
-    <div class="footer">
-        Tap download to save songs for offline listening
-    </div>
+<div class="song-list" id="songList"></div>
 
-    <script>
-        // ==============================================
-        // SONG CATALOG – Add or remove songs here
-        // ==============================================
+<div class="footer" id="footerText">
+    Tap play to listen, download to save offline
+</div>
+
+<script>
+    (function(){
+        "use strict";
+
+        // ---------- CONFIG ----------
+        const RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
+        
         const SONGS = [
             {
                 id: "song1",
                 title: "She's a Big Boy",
                 artist: "Artist Name",
                 filename: "She_s_a_big_boy.mp3",
-                cover: "IMG_7315.jpg"     // optional, not displayed in this version
-            },
-            // Add more songs below:
-            // {
-            //     id: "song2",
-            //     title: "Another Song",
-            //     artist: "Another Artist",
-            //     filename: "another_song.mp3"
-            // }
+                cover: "IMG_7315.jpg"
+            }
         ];
 
-        // ==============================================
-        // CONFIGURATION – Base URL for raw MP3 files
-        // ==============================================
-        const RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
-
-        // ==============================================
-        // BUILD THE UI
-        // ==============================================
-        const songListEl = document.getElementById('songList');
-        const statusEl = document.getElementById('status');
-
-        function renderSongs() {
-            if (!SONGS.length) {
-                songListEl.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">No songs available</div>';
-                statusEl.textContent = '📭 Catalog is empty';
-                return;
+        // ---------- TRANSLATIONS (no emojis) ----------
+        const i18n = {
+            en: {
+                mainTitle: "Max Music",
+                mainSub: "Your offline music library",
+                statusLoading: "Loading catalog...",
+                statusEmpty: "Catalog is empty",
+                statusSongs: (n) => `${n} song${n !== 1 ? 's' : ''} available — choose to play or download`,
+                playBtn: "Play",
+                downloadBtn: "Download",
+                startingDownload: "Preparing download",
+                downloadError: "Download did not start? Tap again",
+                footer: "Tap play to listen, download to save offline",
+                langBtnNext: "RU",      // after EN -> RU
+                langBtnCycle: ["RU", "ES", "EN"],
+                noCover: "No cover"
+            },
+            ru: {
+                mainTitle: "Max Music",
+                mainSub: "Ваша офлайн фонотека",
+                statusLoading: "Загрузка каталога...",
+                statusEmpty: "Каталог пуст",
+                statusSongs: (n) => {
+                    if (n % 10 === 1 && n % 100 !== 11) return `${n} песня доступна — выберите`;
+                    if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return `${n} песни доступны — выберите`;
+                    return `${n} песен доступно — выберите`;
+                },
+                playBtn: "Слушать",
+                downloadBtn: "Скачать",
+                startingDownload: "Подготовка загрузки",
+                downloadError: "Загрузка не началась? Нажмите ещё раз",
+                footer: "Нажмите «Слушать» для воспроизведения, «Скачать» для сохранения",
+                langBtnNext: "ES",
+                langBtnCycle: ["ES", "EN", "RU"],
+                noCover: "Без обложки"
+            },
+            es: {
+                mainTitle: "Max Music",
+                mainSub: "Tu biblioteca musical sin conexion",
+                statusLoading: "Cargando catalogo...",
+                statusEmpty: "El catalogo esta vacio",
+                statusSongs: (n) => `${n} cancion${n !== 1 ? 'es' : ''} disponible — elige reproducir o descargar`,
+                playBtn: "Escuchar",
+                downloadBtn: "Descargar",
+                startingDownload: "Preparando descarga",
+                downloadError: "¿La descarga no inicio? Toca de nuevo",
+                footer: "Toca Escuchar para reproducir, Descargar para guardar",
+                langBtnNext: "EN",
+                langBtnCycle: ["EN", "RU", "ES"],
+                noCover: "Sin portada"
             }
+        };
 
-            let html = '';
-            SONGS.forEach(song => {
-                html += `
-                    <div class="song-card">
-                        <div class="song-info">
-                            <div class="song-title">${escapeHtml(song.title)}</div>
-                            <div class="song-artist">${escapeHtml(song.artist)}</div>
-                        </div>
-                        <button class="download-btn" data-filename="${escapeHtml(song.filename)}" data-title="${escapeHtml(song.title)}">
-                            Download
-                        </button>
-                    </div>
-                `;
-            });
-            songListEl.innerHTML = html;
+        const LANG_ORDER = ['en', 'ru', 'es'];
+        let currentLang = 'en';
 
-            // Attach event listeners to all download buttons
-            document.querySelectorAll('.download-btn').forEach(btn => {
-                btn.addEventListener('click', onDownloadClick);
-            });
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const songListEl = document.getElementById('songList');
+        const langToggle = document.getElementById('langToggle');
+        const mainTitle = document.getElementById('mainTitle');
+        const mainSub = document.getElementById('mainSub');
+        const footerText = document.getElementById('footerText');
 
-            statusEl.textContent = `✅ ${SONGS.length} song${SONGS.length > 1 ? 's' : ''} available — choose one to download`;
-            statusEl.classList.add('success');
-        }
-
-        // Simple escape to prevent XSS
+        // ---------- HELPERS ----------
         function escapeHtml(text) {
             if (!text) return '';
             return String(text)
@@ -205,51 +278,154 @@
                 .replace(/'/g, '&#039;');
         }
 
-        // ==============================================
-        // DOWNLOAD HANDLER – Direct raw GitHub URL
-        // ==============================================
-        function onDownloadClick(event) {
-            const btn = event.currentTarget;
-            const filename = btn.getAttribute('data-filename');
-            const title = btn.getAttribute('data-title');
+        function updateStaticTexts() {
+            const t = i18n[currentLang];
+            mainTitle.textContent = t.mainTitle;
+            mainSub.textContent = t.mainSub;
+            footerText.textContent = t.footer;
+            // Lang button shows next language code
+            langToggle.textContent = t.langBtnNext;
+        }
 
-            if (!filename) {
-                statusEl.textContent = '⚠️ No file specified for this song';
-                statusEl.classList.add('error');
+        function setStatusMessage(type, customKey, isError = false, isSuccess = false) {
+            const t = i18n[currentLang];
+            let message = '';
+            if (customKey === 'loading') message = t.statusLoading;
+            else if (customKey === 'empty') message = t.statusEmpty;
+            else if (customKey === 'songs') message = t.statusSongs(SONGS.length);
+            else message = customKey; // raw string
+
+            statusEl.textContent = message;
+            statusEl.className = 'status-message';
+            if (isError) statusEl.classList.add('error');
+            else if (isSuccess) statusEl.classList.add('success');
+        }
+
+        function getCoverUrl(coverFile) {
+            if (!coverFile) return null;
+            return RAW_BASE_URL + encodeURIComponent(coverFile);
+        }
+
+        // Render song cards
+        function renderSongs() {
+            if (!SONGS.length) {
+                songListEl.innerHTML = `<div style="text-align:center;padding:20px;color:#94a3b8;">${i18n[currentLang].statusEmpty}</div>`;
+                setStatusMessage('info', 'empty');
                 return;
             }
 
-            // Prevent double-click
+            const t = i18n[currentLang];
+            let html = '';
+            SONGS.forEach(song => {
+                const coverUrl = song.cover ? getCoverUrl(song.cover) : null;
+                const coverHtml = coverUrl 
+                    ? `<img class="cover-thumb" src="${escapeHtml(coverUrl)}" alt="cover" loading="lazy" onerror="this.style.display='none'">` 
+                    : `<div class="cover-thumb" style="display:flex;align-items:center;justify-content:center;background:#eef2ff;color:#64748b;font-size:12px;">${t.noCover}</div>`;
+                
+                html += `
+                    <div class="song-card" data-song-id="${escapeHtml(song.id)}">
+                        <div class="song-card-left">
+                            ${coverHtml}
+                            <div class="song-info">
+                                <div class="song-title">${escapeHtml(song.title)}</div>
+                                <div class="song-artist">${escapeHtml(song.artist)}</div>
+                            </div>
+                        </div>
+                        <div class="song-actions">
+                            <button class="action-btn play-btn" data-action="play" data-filename="${escapeHtml(song.filename)}" data-title="${escapeHtml(song.title)}" data-artist="${escapeHtml(song.artist)}" data-cover="${escapeHtml(song.cover || '')}">${t.playBtn}</button>
+                            <button class="action-btn download-btn" data-action="download" data-filename="${escapeHtml(song.filename)}" data-title="${escapeHtml(song.title)}">${t.downloadBtn}</button>
+                        </div>
+                    </div>
+                `;
+            });
+            songListEl.innerHTML = html;
+            setStatusMessage('success', 'songs', false, true);
+        }
+
+        function attachEvents() {
+            document.querySelectorAll('[data-action="play"]').forEach(btn => {
+                btn.addEventListener('click', onPlayClick);
+            });
+            document.querySelectorAll('[data-action="download"]').forEach(btn => {
+                btn.addEventListener('click', onDownloadClick);
+            });
+        }
+
+        function onPlayClick(e) {
+            const btn = e.currentTarget;
+            const filename = btn.dataset.filename;
+            const title = btn.dataset.title;
+            const artist = btn.dataset.artist;
+            const cover = btn.dataset.cover || '';
+            
+            const params = new URLSearchParams();
+            params.set('title', title);
+            params.set('artist', artist);
+            params.set('file', filename);
+            params.set('cover', cover);
+            params.set('lang', currentLang);
+            
+            const playerUrl = `player.html?${params.toString()}`;
+            window.open(playerUrl, '_blank');
+        }
+
+        function onDownloadClick(e) {
+            const btn = e.currentTarget;
+            const filename = btn.dataset.filename;
+            const title = btn.dataset.title;
+            const t = i18n[currentLang];
+
+            if (!filename) {
+                setStatusMessage('error', 'No file specified', true);
+                return;
+            }
+
             if (btn.disabled) return;
             btn.disabled = true;
             btn.classList.add('loading');
-            btn.textContent = 'Starting...';
+            const originalText = btn.textContent;
+            btn.textContent = '...';
 
-            statusEl.textContent = `⏳ Preparing download: ${title}`;
-            statusEl.className = 'status-message';
-            statusEl.style.background = '#fef9c3';
-            statusEl.style.color = '#854d0e';
-
-            // Build the direct raw download URL (no more shuhayda.com)
             const downloadUrl = RAW_BASE_URL + encodeURIComponent(filename);
-
-            // Navigate to trigger download (app's WebView should handle this)
+            
+            setStatusMessage('info', `${t.startingDownload}: ${title}`);
+            
             window.location.href = downloadUrl;
 
-            // Reset button after a timeout (in case download fails silently)
             setTimeout(() => {
-                if (btn.disabled) {
-                    btn.disabled = false;
-                    btn.classList.remove('loading');
-                    btn.textContent = 'Download';
-                    statusEl.textContent = '⚠️ Download did not start? Tap again';
-                    statusEl.className = 'status-message error';
-                }
-            }, 3000);
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                btn.textContent = originalText;
+                setStatusMessage('error', t.downloadError, true);
+            }, 2800);
         }
 
-        // Start everything when page loads
-        window.addEventListener('DOMContentLoaded', renderSongs);
-    </script>
+        // Cycle language en -> ru -> es -> en
+        function toggleLanguage() {
+            const currentIndex = LANG_ORDER.indexOf(currentLang);
+            const nextIndex = (currentIndex + 1) % LANG_ORDER.length;
+            currentLang = LANG_ORDER[nextIndex];
+            
+            updateStaticTexts();
+            renderSongs();
+            attachEvents();
+            
+            if (SONGS.length) {
+                setStatusMessage('success', 'songs', false, true);
+            } else {
+                setStatusMessage('info', 'empty');
+            }
+        }
+
+        function init() {
+            updateStaticTexts();
+            renderSongs();
+            attachEvents();
+            langToggle.addEventListener('click', toggleLanguage);
+        }
+
+        init();
+    })();
+</script>
 </body>
 </html>
