@@ -263,33 +263,26 @@
         "use strict";
 
         // ---------- CONFIG ----------
-        const RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
+        var RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
         
-        const SONGS = [
+        var SONGS = [
             {
                 id: "song1",
                 title: "She's a Big Boy",
                 artist: "Artist Name",
                 filename: "She_s_a_big_boy.mp3",
-                cover: ""
-            },
-            {
-                id: "song2",
-                title: "Последний танец",
-                artist: "Культурное Наследие",
-                filename: "Последний%20танец%20-%20Культурное%20Наследие.mp3",
-                cover: ""
+                cover: "IMG_7315.jpg"
             }
         ];
 
-        // ---------- TRANSLATIONS ----------
-        const i18n = {
+        // ---------- TRANSLATIONS (no emojis) ----------
+        var i18n = {
             en: {
                 mainTitle: "Max Music",
                 mainSub: "Your offline music library",
                 statusLoading: "Loading catalog...",
                 statusEmpty: "Catalog is empty",
-                statusSongs: (n) => `${n} song${n !== 1 ? 's' : ''} available — choose to play or download`,
+                statusSongs: function(n) { return n + ' song' + (n !== 1 ? 's' : '') + ' available — choose to play or download'; },
                 playBtn: "Play",
                 downloadBtn: "Download",
                 startingDownload: "Preparing download",
@@ -306,10 +299,10 @@
                 mainSub: "Ваша офлайн фонотека",
                 statusLoading: "Загрузка каталога...",
                 statusEmpty: "Каталог пуст",
-                statusSongs: (n) => {
-                    if (n % 10 === 1 && n % 100 !== 11) return `${n} песня доступна — выберите`;
-                    if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return `${n} песни доступны — выберите`;
-                    return `${n} песен доступно — выберите`;
+                statusSongs: function(n) {
+                    if (n % 10 === 1 && n % 100 !== 11) return n + ' песня доступна — выберите';
+                    if ([2,3,4].indexOf(n % 10) !== -1 && [12,13,14].indexOf(n % 100) === -1) return n + ' песни доступны — выберите';
+                    return n + ' песен доступно — выберите';
                 },
                 playBtn: "Слушать",
                 downloadBtn: "Скачать",
@@ -327,7 +320,7 @@
                 mainSub: "Tu biblioteca musical sin conexion",
                 statusLoading: "Cargando catalogo...",
                 statusEmpty: "El catalogo esta vacio",
-                statusSongs: (n) => `${n} cancion${n !== 1 ? 'es' : ''} disponible — elige reproducir o descargar`,
+                statusSongs: function(n) { return n + ' cancion' + (n !== 1 ? 'es' : '') + ' disponible — elige reproducir o descargar'; },
                 playBtn: "Escuchar",
                 downloadBtn: "Descargar",
                 startingDownload: "Preparando descarga",
@@ -341,21 +334,44 @@
             }
         };
 
-        const LANG_ORDER = ['en', 'ru', 'es'];
-        let currentLang = 'en';
+        var LANG_ORDER = ['en', 'ru', 'es'];
+        var currentLang = 'en';
 
         // DOM elements
-        const statusEl = document.getElementById('status');
-        const songListEl = document.getElementById('songList');
-        const langToggle = document.getElementById('langToggle');
-        const themeToggle = document.getElementById('themeToggle');
-        const resetBtn = document.getElementById('resetBtn');
-        const mainTitle = document.getElementById('mainTitle');
-        const mainSub = document.getElementById('mainSub');
-        const footerText = document.getElementById('footerText');
-        const body = document.body;
+        var statusEl = document.getElementById('status');
+        var songListEl = document.getElementById('songList');
+        var langToggle = document.getElementById('langToggle');
+        var themeToggle = document.getElementById('themeToggle');
+        var resetBtn = document.getElementById('resetBtn');
+        var mainTitle = document.getElementById('mainTitle');
+        var mainSub = document.getElementById('mainSub');
+        var footerText = document.getElementById('footerText');
+        var body = document.body;
 
-        // ---------- DARK MODE (pure black) ----------
+        // ---------- SAFE LOCALSTORAGE ----------
+        function storageGet(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch(e) {
+                return null;
+            }
+        }
+        function storageSet(key, value) {
+            try {
+                localStorage.setItem(key, value);
+                return true;
+            } catch(e) {
+                return false;
+            }
+        }
+        function storageClear() {
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch(e) {}
+        }
+
+        // ---------- DARK MODE (with fallback) ----------
         function applyTheme(isDark) {
             if (isDark) {
                 body.classList.add('dark');
@@ -366,25 +382,27 @@
                 body.classList.add('light');
                 themeToggle.textContent = i18n[currentLang].themeDark;
             }
-            localStorage.setItem('max-music-theme', isDark ? 'dark' : 'light');
+            storageSet('max-music-theme', isDark ? 'dark' : 'light');
         }
 
         function initTheme() {
-            const saved = localStorage.getItem('max-music-theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const isDark = saved ? saved === 'dark' : prefersDark;
+            var saved = storageGet('max-music-theme');
+            var prefersDark = false;
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                prefersDark = true;
+            }
+            var isDark = saved ? saved === 'dark' : prefersDark;
             applyTheme(isDark);
         }
 
         function toggleTheme() {
-            const isDark = body.classList.contains('dark');
+            var isDark = body.classList.contains('dark');
             applyTheme(!isDark);
         }
 
-        // ---------- RESET: clear all data and reload ----------
+        // ---------- RESET ----------
         function resetAllData() {
-            localStorage.clear();
-            sessionStorage.clear();
+            storageClear();
             window.location.reload(true);
         }
 
@@ -400,19 +418,19 @@
         }
 
         function updateStaticTexts() {
-            const t = i18n[currentLang];
+            var t = i18n[currentLang];
             mainTitle.textContent = t.mainTitle;
             mainSub.textContent = t.mainSub;
             footerText.textContent = t.footer;
             langToggle.textContent = t.langBtnNext;
             resetBtn.textContent = t.resetBtn;
-            const isDark = body.classList.contains('dark');
+            var isDark = body.classList.contains('dark');
             themeToggle.textContent = isDark ? t.themeLight : t.themeDark;
         }
 
-        function setStatusMessage(type, customKey, isError = false, isSuccess = false) {
-            const t = i18n[currentLang];
-            let message = '';
+        function setStatusMessage(customKey, isError, isSuccess) {
+            var t = i18n[currentLang];
+            var message = '';
             if (customKey === 'loading') message = t.statusLoading;
             else if (customKey === 'empty') message = t.statusEmpty;
             else if (customKey === 'songs') message = t.statusSongs(SONGS.length);
@@ -421,7 +439,7 @@
             statusEl.textContent = message;
             statusEl.className = 'status-message';
             if (isError) statusEl.classList.add('error');
-            else if (isSuccess) statusEl.classList.add('success');
+            if (isSuccess) statusEl.classList.add('success');
         }
 
         function getCoverUrl(coverFile) {
@@ -432,56 +450,57 @@
         // Render song cards
         function renderSongs() {
             if (!SONGS.length) {
-                songListEl.innerHTML = `<div style="text-align:center;padding:20px;color:#94a3b8;">${i18n[currentLang].statusEmpty}</div>`;
-                setStatusMessage('info', 'empty');
+                songListEl.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8;">' + i18n[currentLang].statusEmpty + '</div>';
+                setStatusMessage('empty', false, false);
                 return;
             }
 
-            const t = i18n[currentLang];
-            let html = '';
-            SONGS.forEach(song => {
-                const coverUrl = song.cover ? getCoverUrl(song.cover) : null;
-                const coverHtml = coverUrl 
-                    ? `<img class="cover-thumb" src="${escapeHtml(coverUrl)}" alt="cover" loading="lazy" onerror="this.style.display='none'">` 
-                    : `<div class="cover-thumb" style="display:flex;align-items:center;justify-content:center;background:#eef2ff;color:#64748b;font-size:12px;">${t.noCover}</div>`;
+            var t = i18n[currentLang];
+            var html = '';
+            for (var i = 0; i < SONGS.length; i++) {
+                var song = SONGS[i];
+                var coverUrl = song.cover ? getCoverUrl(song.cover) : null;
+                var coverHtml = coverUrl 
+                    ? '<img class="cover-thumb" src="' + escapeHtml(coverUrl) + '" alt="cover" loading="lazy" onerror="this.style.display=\'none\'">' 
+                    : '<div class="cover-thumb" style="display:flex;align-items:center;justify-content:center;background:#eef2ff;color:#64748b;font-size:12px;">' + t.noCover + '</div>';
                 
-                html += `
-                    <div class="song-card" data-song-id="${escapeHtml(song.id)}">
-                        <div class="song-card-left">
-                            ${coverHtml}
-                            <div class="song-info">
-                                <div class="song-title">${escapeHtml(song.title)}</div>
-                                <div class="song-artist">${escapeHtml(song.artist)}</div>
-                            </div>
-                        </div>
-                        <div class="song-actions">
-                            <button class="action-btn play-btn" data-action="play" data-filename="${escapeHtml(song.filename)}" data-title="${escapeHtml(song.title)}" data-artist="${escapeHtml(song.artist)}" data-cover="${escapeHtml(song.cover || '')}">${t.playBtn}</button>
-                            <button class="action-btn download-btn" data-action="download" data-filename="${escapeHtml(song.filename)}" data-title="${escapeHtml(song.title)}">${t.downloadBtn}</button>
-                        </div>
-                    </div>
-                `;
-            });
+                html += '<div class="song-card" data-song-id="' + escapeHtml(song.id) + '">' +
+                    '<div class="song-card-left">' +
+                        coverHtml +
+                        '<div class="song-info">' +
+                            '<div class="song-title">' + escapeHtml(song.title) + '</div>' +
+                            '<div class="song-artist">' + escapeHtml(song.artist) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="song-actions">' +
+                        '<button class="action-btn play-btn" data-action="play" data-filename="' + escapeHtml(song.filename) + '" data-title="' + escapeHtml(song.title) + '" data-artist="' + escapeHtml(song.artist) + '" data-cover="' + escapeHtml(song.cover || '') + '">' + t.playBtn + '</button>' +
+                        '<button class="action-btn download-btn" data-action="download" data-filename="' + escapeHtml(song.filename) + '" data-title="' + escapeHtml(song.title) + '">' + t.downloadBtn + '</button>' +
+                    '</div>' +
+                '</div>';
+            }
             songListEl.innerHTML = html;
-            setStatusMessage('success', 'songs', false, true);
+            setStatusMessage('songs', false, true);
         }
 
         function attachEvents() {
-            document.querySelectorAll('[data-action="play"]').forEach(btn => {
-                btn.addEventListener('click', onPlayClick);
-            });
-            document.querySelectorAll('[data-action="download"]').forEach(btn => {
-                btn.addEventListener('click', onDownloadClick);
-            });
+            var playBtns = document.querySelectorAll('[data-action="play"]');
+            for (var i = 0; i < playBtns.length; i++) {
+                playBtns[i].addEventListener('click', onPlayClick);
+            }
+            var downloadBtns = document.querySelectorAll('[data-action="download"]');
+            for (var j = 0; j < downloadBtns.length; j++) {
+                downloadBtns[j].addEventListener('click', onDownloadClick);
+            }
         }
 
         function onPlayClick(e) {
-            const btn = e.currentTarget;
-            const filename = btn.dataset.filename;
-            const title = btn.dataset.title;
-            const artist = btn.dataset.artist;
-            const cover = btn.dataset.cover || '';
+            var btn = e.currentTarget;
+            var filename = btn.getAttribute('data-filename');
+            var title = btn.getAttribute('data-title');
+            var artist = btn.getAttribute('data-artist');
+            var cover = btn.getAttribute('data-cover') || '';
             
-            const params = new URLSearchParams();
+            var params = new URLSearchParams();
             params.set('title', title);
             params.set('artist', artist);
             params.set('file', filename);
@@ -489,71 +508,67 @@
             params.set('lang', currentLang);
             params.set('theme', body.classList.contains('dark') ? 'dark' : 'light');
             
-            const playerUrl = `player.html?${params.toString()}`;
+            var playerUrl = 'player.html?' + params.toString();
             window.open(playerUrl, '_blank');
         }
 
         function onDownloadClick(e) {
-            const btn = e.currentTarget;
-            const filename = btn.dataset.filename;
-            const title = btn.dataset.title;
-            const t = i18n[currentLang];
+            var btn = e.currentTarget;
+            var filename = btn.getAttribute('data-filename');
+            var title = btn.getAttribute('data-title');
+            var t = i18n[currentLang];
 
             if (!filename) {
-                setStatusMessage('error', 'No file specified', true);
+                setStatusMessage('No file specified', true, false);
                 return;
             }
 
             if (btn.disabled) return;
             btn.disabled = true;
             btn.classList.add('loading');
-            const originalText = btn.textContent;
+            var originalText = btn.textContent;
             btn.textContent = '...';
 
-            const downloadUrl = RAW_BASE_URL + encodeURIComponent(filename);
-            
-            setStatusMessage('info', `${t.startingDownload}: ${title}`);
-            
+            var downloadUrl = RAW_BASE_URL + encodeURIComponent(filename);
+            setStatusMessage(t.startingDownload + ': ' + title, false, false);
             window.location.href = downloadUrl;
 
-            setTimeout(() => {
+            setTimeout(function() {
                 btn.disabled = false;
                 btn.classList.remove('loading');
                 btn.textContent = originalText;
-                setStatusMessage('error', t.downloadError, true);
+                setStatusMessage(t.downloadError, true, false);
             }, 2800);
         }
 
-        // Smooth language switch – now saves preference
-        let langSwitchTimer = null;
+        // Language toggle with persistence
+        var langSwitchTimer = null;
         function toggleLanguage() {
             if (langSwitchTimer) clearTimeout(langSwitchTimer);
             
-            const currentIndex = LANG_ORDER.indexOf(currentLang);
-            const nextIndex = (currentIndex + 1) % LANG_ORDER.length;
+            var currentIndex = LANG_ORDER.indexOf(currentLang);
+            var nextIndex = (currentIndex + 1) % LANG_ORDER.length;
             currentLang = LANG_ORDER[nextIndex];
             
-            // Save to localStorage
-            localStorage.setItem('max-music-lang', currentLang);
+            storageSet('max-music-lang', currentLang);
             
             updateStaticTexts();
             renderSongs();
             attachEvents();
             
             if (SONGS.length) {
-                setStatusMessage('success', 'songs', false, true);
+                setStatusMessage('songs', false, true);
             } else {
-                setStatusMessage('info', 'empty');
+                setStatusMessage('empty', false, false);
             }
             
-            langSwitchTimer = setTimeout(() => { langSwitchTimer = null; }, 150);
+            langSwitchTimer = setTimeout(function() { langSwitchTimer = null; }, 150);
         }
 
-        // ---------- INIT (with language persistence) ----------
+        // ---------- INIT ----------
         function init() {
-            // Load saved language
-            const savedLang = localStorage.getItem('max-music-lang');
-            if (savedLang && LANG_ORDER.includes(savedLang)) {
+            var savedLang = storageGet('max-music-lang');
+            if (savedLang && LANG_ORDER.indexOf(savedLang) !== -1) {
                 currentLang = savedLang;
             }
             
@@ -566,12 +581,14 @@
             themeToggle.addEventListener('click', toggleTheme);
             resetBtn.addEventListener('click', resetAllData);
             
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-                if (!localStorage.getItem('max-music-theme')) {
-                    applyTheme(e.matches);
-                    updateStaticTexts();
-                }
-            });
+            if (window.matchMedia) {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+                    if (!storageGet('max-music-theme')) {
+                        applyTheme(e.matches);
+                        updateStaticTexts();
+                    }
+                });
+            }
         }
 
         init();
