@@ -157,7 +157,6 @@
     <div class="song-title" id="songTitle">—</div>
     <div class="song-artist" id="songArtist">—</div>
     
-    <!-- ✅ Added playsinline and crossorigin for WebView compatibility -->
     <audio id="audioPlayer" controls preload="metadata" playsinline crossorigin="anonymous"></audio>
     
     <div class="player-footer" id="footerNote"></div>
@@ -167,9 +166,9 @@
     (function(){
         "use strict";
 
-        const RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
+        var RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
 
-        const i18n = {
+        var i18n = {
             en: {
                 back: '← Back to library',
                 noCover: 'No cover',
@@ -196,31 +195,61 @@
             }
         };
 
-        const params = new URLSearchParams(window.location.search);
-        const title = params.get('title') || 'Unknown Title';
-        const artist = params.get('artist') || 'Unknown Artist';
-        const file = params.get('file') || '';
-        const cover = params.get('cover') || '';
-        let langParam = params.get('lang') || 'en';
-        if (!['en', 'ru', 'es'].includes(langParam)) langParam = 'en';
-        const themeParam = params.get('theme') || 'light';
+        // ---------- Helper: get URL parameter (compatible with older browsers) ----------
+        function getQueryParam(name) {
+            var result = null;
+            var search = window.location.search.substring(1);
+            if (search) {
+                var params = search.split('&');
+                for (var i = 0; i < params.length; i++) {
+                    var pair = params[i].split('=');
+                    if (decodeURIComponent(pair[0]) === name) {
+                        result = decodeURIComponent(pair[1] || '');
+                        break;
+                    }
+                }
+            }
+            return result;
+        }
 
-        const body = document.body;
-        const backLink = document.getElementById('backLink');
-        const langIndicator = document.getElementById('langIndicator');
-        const songTitleEl = document.getElementById('songTitle');
-        const songArtistEl = document.getElementById('songArtist');
-        const coverImg = document.getElementById('coverImage');
-        const coverPlaceholder = document.getElementById('coverPlaceholder');
-        const audioPlayer = document.getElementById('audioPlayer');
-        const footerNote = document.getElementById('footerNote');
-        const playerThemeToggle = document.getElementById('playerThemeToggle');
+        // ---------- Load song data: sessionStorage first, then URL params ----------
+        var songData = null;
+        try {
+            var stored = sessionStorage.getItem('currentSong');
+            if (stored) {
+                songData = JSON.parse(stored);
+            }
+        } catch(e) { /* ignore */ }
 
-        // Silent error logging (no UI change)
+        // Fallback to URL parameters
+        var title = (songData && songData.title) || getQueryParam('title') || 'Unknown Title';
+        var artist = (songData && songData.artist) || getQueryParam('artist') || 'Unknown Artist';
+        var file = (songData && songData.file) || getQueryParam('file') || '';
+        var cover = (songData && songData.cover) || getQueryParam('cover') || '';
+        var langParam = (songData && songData.lang) || getQueryParam('lang') || 'en';
+        var themeParam = (songData && songData.theme) || getQueryParam('theme') || 'light';
+
+        if (!['en', 'ru', 'es'].indexOf(langParam) === -1) langParam = 'en';
+        if (langParam !== 'en' && langParam !== 'ru' && langParam !== 'es') langParam = 'en';
+
+        // DOM elements
+        var body = document.body;
+        var backLink = document.getElementById('backLink');
+        var langIndicator = document.getElementById('langIndicator');
+        var songTitleEl = document.getElementById('songTitle');
+        var songArtistEl = document.getElementById('songArtist');
+        var coverImg = document.getElementById('coverImage');
+        var coverPlaceholder = document.getElementById('coverPlaceholder');
+        var audioPlayer = document.getElementById('audioPlayer');
+        var footerNote = document.getElementById('footerNote');
+        var playerThemeToggle = document.getElementById('playerThemeToggle');
+
+        // Error logging (silent)
         audioPlayer.addEventListener('error', function() {
             console.warn('Audio error:', audioPlayer.error);
         });
 
+        // Theme functions
         function applyTheme(isDark) {
             if (isDark) {
                 body.classList.add('dark');
@@ -229,44 +258,50 @@
                 body.classList.remove('dark');
                 body.classList.add('light');
             }
-            const t = i18n[langParam];
+            var t = i18n[langParam];
             playerThemeToggle.textContent = isDark ? t.themeLight : t.themeDark;
-            localStorage.setItem('max-music-theme', isDark ? 'dark' : 'light');
+            try {
+                localStorage.setItem('max-music-theme', isDark ? 'dark' : 'light');
+            } catch(e) {}
         }
 
         function initTheme() {
-            const saved = localStorage.getItem('max-music-theme');
+            var saved = null;
+            try { saved = localStorage.getItem('max-music-theme'); } catch(e) {}
             if (saved) {
                 applyTheme(saved === 'dark');
             } else if (themeParam) {
                 applyTheme(themeParam === 'dark');
             } else {
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
                 applyTheme(prefersDark);
             }
         }
 
         function applyLanguage(lang) {
-            const t = i18n[lang];
+            var t = i18n[lang];
             backLink.textContent = t.back;
             coverPlaceholder.textContent = t.noCover;
             footerNote.textContent = t.footer;
             langIndicator.textContent = t.langDisplay;
             document.documentElement.lang = lang;
-            const isDark = body.classList.contains('dark');
+            var isDark = body.classList.contains('dark');
             playerThemeToggle.textContent = isDark ? t.themeLight : t.themeDark;
         }
 
         applyLanguage(langParam);
         initTheme();
 
+        // Set text content
         songTitleEl.textContent = title;
         songArtistEl.textContent = artist;
 
+        // Set audio source
         if (file) {
             audioPlayer.src = RAW_BASE_URL + encodeURIComponent(file);
         }
 
+        // Set cover image
         if (cover) {
             coverImg.src = RAW_BASE_URL + encodeURIComponent(cover);
             coverImg.style.display = 'block';
@@ -283,16 +318,20 @@
 
         backLink.href = 'index.html';
 
-        playerThemeToggle.addEventListener('click', () => {
-            const isDark = body.classList.contains('dark');
+        playerThemeToggle.addEventListener('click', function() {
+            var isDark = body.classList.contains('dark');
             applyTheme(!isDark);
         });
 
-        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-            if (!localStorage.getItem('max-music-theme')) {
-                applyTheme(e.matches);
-            }
-        });
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+                var saved = null;
+                try { saved = localStorage.getItem('max-music-theme'); } catch(e) {}
+                if (!saved) {
+                    applyTheme(e.matches);
+                }
+            });
+        }
     })();
 </script>
 </body>
