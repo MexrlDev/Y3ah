@@ -152,6 +152,11 @@
         ];
 
         // ==============================================
+        // CONFIGURATION – Base URL for raw MP3 files
+        // ==============================================
+        const RAW_BASE_URL = 'https://raw.githubusercontent.com/MexrlDev/Y3ah/refs/heads/main/mp3s/';
+
+        // ==============================================
         // BUILD THE UI
         // ==============================================
         const songListEl = document.getElementById('songList');
@@ -201,7 +206,7 @@
         }
 
         // ==============================================
-        // DOWNLOAD HANDLER – Triggers app's native download
+        // DOWNLOAD HANDLER – Direct raw GitHub URL
         // ==============================================
         function onDownloadClick(event) {
             const btn = event.currentTarget;
@@ -225,10 +230,10 @@
             statusEl.style.background = '#fef9c3';
             statusEl.style.color = '#854d0e';
 
-            // Build the download URL – the app intercepts any URL containing "download.php"
-            const downloadUrl = `http://shuhayda.com/download.php?file=${encodeURIComponent(filename)}`;
+            // Build the direct raw download URL (no more shuhayda.com)
+            const downloadUrl = RAW_BASE_URL + encodeURIComponent(filename);
 
-            // Navigate to trigger the download interception
+            // Navigate to trigger download (app's WebView should handle this)
             window.location.href = downloadUrl;
 
             // Reset button after a timeout (in case download fails silently)
