@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
     <title>Max Music · Player</title>
     <style>
         * {
@@ -152,14 +150,14 @@
     <div class="lang-indicator" id="langIndicator"></div>
     
     <div class="cover-wrapper">
-        <img id="coverImage" class="cover-img" src="" alt="cover" crossorigin="anonymous" style="display: none;" onerror="this.style.display='none'; document.getElementById('coverPlaceholder').style.display='flex';">
+        <img id="coverImage" class="cover-img" src="" alt="cover" style="display: none;" onerror="this.style.display='none'; document.getElementById('coverPlaceholder').style.display='flex';">
         <div id="coverPlaceholder" class="cover-placeholder" style="display: flex;">No cover</div>
     </div>
     
     <div class="song-title" id="songTitle">—</div>
     <div class="song-artist" id="songArtist">—</div>
     
-    <audio id="audioPlayer" controls preload="metadata" playsinline crossorigin="anonymous"></audio>
+    <audio id="audioPlayer" controls preload="metadata"></audio>
     
     <div class="player-footer" id="footerNote"></div>
 </div>
@@ -217,11 +215,6 @@
         const footerNote = document.getElementById('footerNote');
         const playerThemeToggle = document.getElementById('playerThemeToggle');
 
-        // Audio error logging (silent – no UI change)
-        audioPlayer.addEventListener('error', function(e) {
-            console.warn('Audio playback error:', audioPlayer.error);
-        });
-
         function applyTheme(isDark) {
             if (isDark) {
                 body.classList.add('dark');
@@ -265,7 +258,6 @@
         songArtistEl.textContent = artist;
 
         if (file) {
-            // Ensure correct URL encoding (once)
             audioPlayer.src = RAW_BASE_URL + encodeURIComponent(file);
         }
 
