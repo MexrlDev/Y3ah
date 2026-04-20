@@ -96,7 +96,12 @@
             background: #0a0a0a;
             color: #ddd;
         }
-        .refresh-btn {
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .refresh-btn, .copy-btn {
             background: #3b82f6;
             color: white;
             border: none;
@@ -104,7 +109,12 @@
             padding: 10px 20px;
             font-weight: 500;
             cursor: pointer;
-            margin-top: 8px;
+        }
+        .copy-btn {
+            background: #10b981;
+        }
+        .copy-btn:active {
+            background: #059669;
         }
     </style>
 </head>
@@ -116,7 +126,10 @@
     </div>
 
     <div id="infoContent">Loading...</div>
-    <button class="refresh-btn" id="refreshBtn">Refresh</button>
+    <div class="button-group">
+        <button class="refresh-btn" id="refreshBtn">Refresh</button>
+        <button class="copy-btn" id="copyBtn">Copy Report</button>
+    </div>
 </div>
 
 <script>
@@ -150,7 +163,10 @@
                 storage: 'Local Storage',
                 jsFeatures: 'JavaScript Features',
                 misc: 'Miscellaneous',
-                refresh: 'Refresh'
+                refresh: 'Refresh',
+                copy: 'Copy Report',
+                copySuccess: 'Report copied!',
+                copyError: 'Copy failed'
             },
             ru: {
                 back: '← Назад к инструментам',
@@ -165,7 +181,10 @@
                 storage: 'Локальное хранилище',
                 jsFeatures: 'Возможности JavaScript',
                 misc: 'Разное',
-                refresh: 'Обновить'
+                refresh: 'Обновить',
+                copy: 'Копировать отчёт',
+                copySuccess: 'Отчёт скопирован!',
+                copyError: 'Ошибка копирования'
             },
             es: {
                 back: '← Volver a Herramientas',
@@ -180,13 +199,17 @@
                 storage: 'Almacenamiento local',
                 jsFeatures: 'Características JS',
                 misc: 'Misceláneo',
-                refresh: 'Actualizar'
+                refresh: 'Actualizar',
+                copy: 'Copiar informe',
+                copySuccess: '¡Informe copiado!',
+                copyError: 'Error al copiar'
             }
         };
 
         document.getElementById('backLink').textContent = i18n[lang].back;
         document.getElementById('title').textContent = i18n[lang].title;
         document.getElementById('refreshBtn').textContent = i18n[lang].refresh;
+        document.getElementById('copyBtn').textContent = i18n[lang].copy;
 
         // ---------- Detect browser name and version ----------
         function getBrowserInfo() {
@@ -235,32 +258,31 @@
             return 'ES3 or older';
         }
 
-        // ---------- Detect HTML version (based on features) ----------
+        // ---------- Detect HTML version ----------
         function getHTMLVersion() {
             var test = document.createElement('div');
             if ('contentEditable' in test) {
-                // HTML5 features
                 if (typeof window.history.pushState !== 'undefined') return 'HTML5';
                 return 'HTML5 (partial)';
             }
             return 'HTML4 or XHTML';
         }
 
-        // ---------- Detect CSS version / level ----------
+        // ---------- Detect CSS level ----------
         function getCSSVersion() {
             if (typeof CSS !== 'undefined' && CSS.supports) {
                 if (CSS.supports('display', 'grid')) return 'CSS Grid (Level 3)';
                 if (CSS.supports('transform', 'translate(0)')) return 'CSS3 (Transforms)';
                 if (CSS.supports('border-radius', '5px')) return 'CSS3';
             }
-            // fallback checks
             var el = document.createElement('div');
             if ('borderRadius' in el.style) return 'CSS3';
             if ('boxShadow' in el.style) return 'CSS3';
             return 'CSS2.1';
         }
 
-        function gatherInfo() {
+        // Gather all info (including hidden extras)
+        function gatherFullInfo() {
             var ua = navigator.userAgent;
             var platform = navigator.platform;
             var language = navigator.language;
@@ -282,16 +304,16 @@
 
             // LocalStorage
             var lsLength = 0;
-            var lsKeys = [];
+            var lsItems = [];
             try {
                 lsLength = localStorage.length;
                 for (var i = 0; i < lsLength; i++) {
                     var key = localStorage.key(i);
-                    lsKeys.push(key + ': ' + localStorage.getItem(key));
+                    lsItems.push({ key: key, value: localStorage.getItem(key) });
                 }
-            } catch(e) { lsKeys = ['(storage not accessible)']; }
+            } catch(e) { lsItems = []; }
 
-            // JS features
+            // JS features (full list)
             var features = {
                 'Web Worker': !!window.Worker,
                 'Service Worker': 'serviceWorker' in navigator,
@@ -320,7 +342,21 @@
                 'SharedWorker': !!window.SharedWorker,
                 'Performance API': !!window.performance,
                 'Crypto': !!window.crypto,
-                'requestIdleCallback': !!window.requestIdleCallback
+                'requestIdleCallback': !!window.requestIdleCallback,
+                'VisualViewport': !!window.visualViewport,
+                'DeviceOrientation': 'DeviceOrientationEvent' in window,
+                'DeviceMotion': 'DeviceMotionEvent' in window,
+                'SpeechSynthesis': 'speechSynthesis' in window,
+                'SpeechRecognition': 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
+                'Gamepad': 'getGamepads' in navigator,
+                'Clipboard API': 'clipboard' in navigator,
+                'Permissions API': 'permissions' in navigator,
+                'Fullscreen API': 'fullscreenEnabled' in document,
+                'Pointer Lock': 'pointerLockElement' in document,
+                'Web Animations': !!Element.prototype.animate,
+                'Custom Elements': 'customElements' in window,
+                'Shadow DOM': !!Element.prototype.attachShadow,
+                'CSS Variables': (function() { return window.CSS && CSS.supports('--test', '0'); })()
             };
 
             var browser = getBrowserInfo();
@@ -329,13 +365,43 @@
             var htmlVer = getHTMLVersion();
             var cssVer = getCSSVersion();
 
+            // Extra hidden info
+            var performanceInfo = {};
+            if (window.performance) {
+                var t = performance.timing || {};
+                performanceInfo = {
+                    navigationStart: t.navigationStart,
+                    domLoading: t.domLoading,
+                    domInteractive: t.domInteractive,
+                    domComplete: t.domComplete,
+                    loadEventEnd: t.loadEventEnd,
+                    pageLoadTime: t.loadEventEnd ? (t.loadEventEnd - t.navigationStart) + ' ms' : 'N/A',
+                    memory: performance.memory ? {
+                        jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
+                        totalJSHeapSize: performance.memory.totalJSHeapSize,
+                        usedJSHeapSize: performance.memory.usedJSHeapSize
+                    } : null
+                };
+            }
+            
+            var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            var connectionInfo = connection ? {
+                effectiveType: connection.effectiveType,
+                downlink: connection.downlink,
+                rtt: connection.rtt,
+                saveData: connection.saveData
+            } : null;
+
+            var screenOrientation = screen.orientation ? {
+                type: screen.orientation.type,
+                angle: screen.orientation.angle
+            } : null;
+
             return {
-                ua: ua, platform: platform, language: language, cookiesEnabled: cookiesEnabled,
-                online: online, hardwareConcurrency: hardwareConcurrency, maxTouchPoints: maxTouchPoints,
-                screenW: screenW, screenH: screenH, availW: availW, availH: availH,
-                colorDepth: colorDepth, pixelDepth: pixelDepth, viewportW: viewportW, viewportH: viewportH,
-                devicePixelRatio: devicePixelRatio, lsKeys: lsKeys, features: features,
-                browser: browser, isMobile: isMobile, jsVer: jsVer, htmlVer: htmlVer, cssVer: cssVer
+                ua, platform, language, cookiesEnabled, online, hardwareConcurrency, maxTouchPoints,
+                screenW, screenH, availW, availH, colorDepth, pixelDepth, viewportW, viewportH, devicePixelRatio,
+                lsItems, features, browser, isMobile, jsVer, htmlVer, cssVer,
+                performanceInfo, connectionInfo, screenOrientation
             };
         }
 
@@ -345,12 +411,14 @@
             });
         }
 
+        // Render visible info on screen
         function renderInfo() {
             var t = i18n[lang];
-            var info = gatherInfo();
+            var info = gatherFullInfo();
             
+            // Features HTML
             var featuresHtml = '';
-            var featureKeys = Object.keys(info.features);
+            var featureKeys = Object.keys(info.features).slice(0, 25); // Show first 25 on screen
             for (var i = 0; i < featureKeys.length; i++) {
                 var name = featureKeys[i];
                 var supported = info.features[name];
@@ -358,16 +426,16 @@
             }
 
             var lsHtml = '';
-            if (info.lsKeys.length) {
-                for (var j = 0; j < info.lsKeys.length; j++) {
-                    lsHtml += '<div class="info-row"><span class="info-label"></span><span class="info-value">' + escapeHtml(info.lsKeys[j]) + '</span></div>';
+            if (info.lsItems.length) {
+                for (var j = 0; j < info.lsItems.length; j++) {
+                    lsHtml += '<div class="info-row"><span class="info-label"></span><span class="info-value">' + escapeHtml(info.lsItems[j].key + ': ' + info.lsItems[j].value) + '</span></div>';
                 }
             } else {
                 lsHtml = '<div class="info-row"><span class="info-value">(empty)</span></div>';
             }
 
             var html = '';
-            // Versions section (NEW)
+            // Versions
             html += '<div class="section">';
             html += '<div class="section-title">' + t.versions + '</div>';
             html += '<div class="info-row"><span class="info-label">' + t.browserLabel + '</span><span class="info-value">' + info.browser.name + ' ' + info.browser.version + ' (' + (info.isMobile ? 'Mobile' : 'Desktop') + ')</span></div>';
@@ -405,10 +473,11 @@
             html += lsHtml;
             html += '</div>';
 
-            // JS Features
+            // JS Features (truncated display)
             html += '<div class="section">';
-            html += '<div class="section-title">' + t.jsFeatures + '</div>';
+            html += '<div class="section-title">' + t.jsFeatures + ' (top 25)</div>';
             html += featuresHtml;
+            html += '<div class="info-row"><span class="info-value">(full list in copied report)</span></div>';
             html += '</div>';
 
             // Misc
@@ -423,8 +492,147 @@
             document.getElementById('infoContent').innerHTML = html;
         }
 
+        // Generate full text report for copying (includes all hidden data)
+        function generateFullReport() {
+            var info = gatherFullInfo();
+            var lines = [];
+            
+            lines.push('=== SYSTEM DIAGNOSTICS REPORT ===');
+            lines.push('Generated: ' + new Date().toString());
+            lines.push('');
+            
+            lines.push('--- VERSIONS ---');
+            lines.push('Browser: ' + info.browser.name + ' ' + info.browser.version + ' (' + (info.isMobile ? 'Mobile' : 'Desktop') + ')');
+            lines.push('JavaScript: ' + info.jsVer);
+            lines.push('HTML: ' + info.htmlVer);
+            lines.push('CSS: ' + info.cssVer);
+            lines.push('');
+            
+            lines.push('--- BROWSER & OS ---');
+            lines.push('User Agent: ' + info.ua);
+            lines.push('Platform: ' + info.platform);
+            lines.push('Language: ' + info.language);
+            lines.push('Online: ' + info.online);
+            lines.push('Cookies Enabled: ' + info.cookiesEnabled);
+            lines.push('Hardware Concurrency: ' + info.hardwareConcurrency);
+            lines.push('Max Touch Points: ' + info.maxTouchPoints);
+            lines.push('');
+            
+            lines.push('--- SCREEN & VIEWPORT ---');
+            lines.push('Screen: ' + info.screenW + 'x' + info.screenH);
+            lines.push('Available: ' + info.availW + 'x' + info.availH);
+            lines.push('Color Depth: ' + info.colorDepth + ' bit');
+            lines.push('Pixel Depth: ' + info.pixelDepth + ' bit');
+            lines.push('Viewport: ' + info.viewportW + 'x' + info.viewportH);
+            lines.push('Device Pixel Ratio: ' + info.devicePixelRatio);
+            if (info.screenOrientation) {
+                lines.push('Screen Orientation: ' + info.screenOrientation.type + ' @ ' + info.screenOrientation.angle + 'deg');
+            }
+            lines.push('');
+            
+            lines.push('--- LOCAL STORAGE ---');
+            if (info.lsItems.length) {
+                for (var i = 0; i < info.lsItems.length; i++) {
+                    var item = info.lsItems[i];
+                    lines.push(item.key + ': ' + item.value);
+                }
+            } else {
+                lines.push('(empty)');
+            }
+            lines.push('');
+            
+            lines.push('--- JAVASCRIPT FEATURES (full) ---');
+            var featureKeys = Object.keys(info.features);
+            for (var j = 0; j < featureKeys.length; j++) {
+                var f = featureKeys[j];
+                lines.push(f + ': ' + (info.features[f] ? 'YES' : 'NO'));
+            }
+            lines.push('');
+            
+            lines.push('--- PERFORMANCE & NETWORK (extra) ---');
+            if (info.performanceInfo) {
+                lines.push('Navigation Start: ' + (info.performanceInfo.navigationStart || 'N/A'));
+                lines.push('DOM Loading: ' + (info.performanceInfo.domLoading || 'N/A'));
+                lines.push('DOM Interactive: ' + (info.performanceInfo.domInteractive || 'N/A'));
+                lines.push('DOM Complete: ' + (info.performanceInfo.domComplete || 'N/A'));
+                lines.push('Load Event End: ' + (info.performanceInfo.loadEventEnd || 'N/A'));
+                lines.push('Page Load Time: ' + (info.performanceInfo.pageLoadTime || 'N/A'));
+                if (info.performanceInfo.memory) {
+                    lines.push('Memory: limit=' + info.performanceInfo.memory.jsHeapSizeLimit + ', total=' + info.performanceInfo.memory.totalJSHeapSize + ', used=' + info.performanceInfo.memory.usedJSHeapSize);
+                }
+            } else {
+                lines.push('Performance API not available');
+            }
+            
+            if (info.connectionInfo) {
+                lines.push('Connection: effectiveType=' + info.connectionInfo.effectiveType + ', downlink=' + info.connectionInfo.downlink + ', rtt=' + info.connectionInfo.rtt + ', saveData=' + info.connectionInfo.saveData);
+            } else {
+                lines.push('Network Information API not available');
+            }
+            lines.push('');
+            
+            lines.push('--- MISCELLANEOUS ---');
+            lines.push('Do Not Track: ' + (navigator.doNotTrack || 'unspecified'));
+            lines.push('Time Zone: ' + Intl.DateTimeFormat().resolvedOptions().timeZone);
+            lines.push('Referrer: ' + (document.referrer || '(none)'));
+            lines.push('History Length: ' + history.length);
+            lines.push('Online: ' + navigator.onLine);
+            lines.push('App Version: ' + (navigator.appVersion || 'N/A'));
+            lines.push('Product: ' + (navigator.product || 'N/A'));
+            lines.push('Vendor: ' + (navigator.vendor || 'N/A'));
+            lines.push('Plugins Count: ' + (navigator.plugins ? navigator.plugins.length : 0));
+            lines.push('MIME Types Count: ' + (navigator.mimeTypes ? navigator.mimeTypes.length : 0));
+            lines.push('Java Enabled: ' + (navigator.javaEnabled ? navigator.javaEnabled() : 'unknown'));
+            lines.push('');
+            
+            lines.push('=== END OF REPORT ===');
+            
+            return lines.join('\n');
+        }
+
+        // Copy to clipboard with fallback
+        function copyReport() {
+            var report = generateFullReport();
+            var success = false;
+            var t = i18n[lang];
+            
+            // Try modern clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(report).then(function() {
+                    alert(t.copySuccess);
+                }).catch(function() {
+                    fallbackCopy(report);
+                });
+            } else {
+                fallbackCopy(report);
+            }
+            
+            function fallbackCopy(text) {
+                var textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    var ok = document.execCommand('copy');
+                    if (ok) {
+                        alert(t.copySuccess);
+                    } else {
+                        alert(t.copyError);
+                    }
+                } catch (err) {
+                    alert(t.copyError);
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // Initial render
         renderInfo();
+        
         document.getElementById('refreshBtn').addEventListener('click', renderInfo);
+        document.getElementById('copyBtn').addEventListener('click', copyReport);
     })();
 </script>
 </body>
