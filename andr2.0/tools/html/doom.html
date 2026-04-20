@@ -251,46 +251,22 @@
             }
         }
 
-        function startEmulator() {
-            Dos(container, {
-                // Official js-dos DOOM shareware bundle (always available)
-                url: 'https://js-dos.com/v8/dist/examples/doom.jsdos',
-                theme: savedTheme === 'light' ? 'light' : 'dark',
-                backend: 'webgl',
-                autoStart: true,
-                noSideBar: true,
-                kiosk: true,
-            }).then(function(runtime) {
-                runtimeInstance = runtime;
-                loadingEl.style.display = 'none';
-                // Hide loading message
-                // Show gamepad
-                document.getElementById('gamepadPanel').classList.remove('hidden');
-                
-                // Optional: add a small hint
-                setTimeout(function() {
-                    var hint = document.createElement('div');
-                    hint.style.position = 'absolute';
-                    hint.style.bottom = '100px';
-                    hint.style.left = '0';
-                    hint.style.right = '0';
-                    hint.style.textAlign = 'center';
-                    hint.style.color = '#aaa';
-                    hint.style.fontSize = '12px';
-                    hint.style.pointerEvents = 'none';
-                    hint.innerText = 'Use on‑screen buttons below';
-                    document.getElementById('game-area').appendChild(hint);
-                    setTimeout(function() { hint.remove(); }, 4000);
-                }, 1000);
-            }).catch(function(err) {
-                console.error(err);
-                loadingEl.textContent = i18n[lang].error;
-                loadingEl.style.cursor = 'pointer';
-                loadingEl.addEventListener('click', function() {
-                    location.reload();
-                });
-            });
-        }
+function startEmulator() {
+    Dos(container, {
+        url: "https://cdn.dos.zone/custom/dos/doom.jsdos",
+        theme: savedTheme === 'light' ? 'light' : 'dark',
+        backend: "webgl",
+        autoStart: true,
+        kiosk: true,
+    }).then(function(runtime) {
+        runtimeInstance = runtime;
+        loadingEl.style.display = 'none';
+        document.getElementById('gamepadPanel').classList.remove('hidden');
+    }).catch(function(err) {
+        console.error(err);
+        loadingEl.textContent = i18n[lang].error;
+    });
+}
 
         // ---------- On‑screen button handling (send keys to emulator) ----------
         function sendKeyToDos(keyCode) {
