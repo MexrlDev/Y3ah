@@ -515,7 +515,7 @@
             params.set('lang', currentLang);
             params.set('theme', body.classList.contains('dark') ? 'dark' : 'light');
             
-            // 🔁 Navigate within same WebView (compatible with Android WebView)
+            // 🔁 FIX: Use location.href instead of window.open for WebView compatibility
             window.location.href = 'player.html?' + params.toString();
         }
 
