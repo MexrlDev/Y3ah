@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Max Music · Tools</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f7fa;
+            color: #1e293b;
+            min-height: 100vh;
+            padding: 16px 12px 24px;
+            transition: background 0.2s, color 0.2s;
+        }
+        body.dark {
+            background: #000000;
+            color: #ffffff;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .back-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+        }
+        body.dark .back-link {
+            color: #60a5fa;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            flex: 1;
+        }
+        .tool-list-container {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        body.dark .tool-list-container {
+            background: #1a1a1a;
+            border-color: #333333;
+        }
+        .tool-list {
+            max-height: 300px;          /* 5 items * 60px approx */
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .tool-item {
+            display: block;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            text-decoration: none;
+            color: inherit;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+        body.dark .tool-item {
+            border-bottom-color: #333333;
+        }
+        .tool-item:last-child {
+            border-bottom: none;
+        }
+        .tool-item:hover {
+            background: #f8fafc;
+        }
+        body.dark .tool-item:hover {
+            background: #2a2a2a;
+        }
+        .footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .empty-message {
+            padding: 40px 20px;
+            text-align: center;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="light">
+<div class="container">
+    <div class="header">
+        <a href="../index.html" class="back-link" id="backLink">← Back</a>
+        <h1 id="pageTitle">Tools</h1>
+    </div>
+
+    <div class="tool-list-container">
+        <div class="tool-list" id="toolList">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <div class="footer" id="footerNote">
+        Select a tool to open
+    </div>
+</div>
+
+<script>
+    (function() {
+        "use strict";
+
+        // ----- Language & Theme (from localStorage) -----
+        const i18n = {
+            en: {
+                back: '← Back',
+                title: 'Tools',
+                footer: 'Select a tool to open',
+                empty: 'No tools available'
+            },
+            ru: {
+                back: '← Назад',
+                title: 'Инструменты',
+                footer: 'Выберите инструмент',
+                empty: 'Нет доступных инструментов'
+            },
+            es: {
+                back: '← Volver',
+                title: 'Herramientas',
+                footer: 'Selecciona una herramienta',
+                empty: 'No hay herramientas disponibles'
+            }
+        };
+
+        // ----- Tools list (manually add entries here) -----
+        const TOOLS = [
+            { name: 'System Info', path: 'html/system-info.html' },
+            // Add more tools below:
+            // { name: 'Another Tool', path: 'html/another.html' },
+        ];
+
+        // Load preferences
+        const savedLang = localStorage.getItem('max-music-lang') || 'en';
+        const savedTheme = localStorage.getItem('max-music-theme') || 'light';
+        const lang = ['en','ru','es'].includes(savedLang) ? savedLang : 'en';
+        
+        // Apply theme
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark');
+            document.body.classList.remove('light');
+        }
+
+        // Apply language strings
+        document.getElementById('backLink').textContent = i18n[lang].back;
+        document.getElementById('pageTitle').textContent = i18n[lang].title;
+        document.getElementById('footerNote').textContent = i18n[lang].footer;
+        document.documentElement.lang = lang;
+
+        // Render tool list
+        const toolListEl = document.getElementById('toolList');
+        if (TOOLS.length === 0) {
+            toolListEl.innerHTML = `<div class="empty-message">${i18n[lang].empty}</div>`;
+        } else {
+            let html = '';
+            TOOLS.forEach(tool => {
+                html += `<a class="tool-item" href="${encodeURI(tool.path)}">${escapeHtml(tool.name)}</a>`;
+            });
+            toolListEl.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            return String(text).replace(/[&<>"]/g, function(c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+            });
+        }
+    })();
+</script>
+</body>
+</html>
