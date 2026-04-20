@@ -515,8 +515,8 @@
             params.set('lang', currentLang);
             params.set('theme', body.classList.contains('dark') ? 'dark' : 'light');
             
-            var playerUrl = 'player.html?' + params.toString();
-            window.open(playerUrl, '_blank');
+            // 🔁 Navigate within same WebView (compatible with Android WebView)
+            window.location.href = 'player.html?' + params.toString();
         }
 
         function onDownloadClick(e) {
