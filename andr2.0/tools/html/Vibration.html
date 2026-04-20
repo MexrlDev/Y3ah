@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vibrator Control</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: system-ui;
+    background: #000;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.toolbar {
+    padding: 12px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    font-size: 18px;
+}
+
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 20px;
+}
+
+.slider-container {
+    text-align: center;
+}
+
+input[type=range] {
+    width: 100%;
+}
+
+.value {
+    margin-top: 10px;
+    font-size: 18px;
+}
+
+.buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+button {
+    padding: 16px;
+    font-size: 16px;
+    border: none;
+    border-radius: 12px;
+    background: #222;
+    color: white;
+}
+
+button:active {
+    background: #3b82f6;
+}
+
+.stop {
+    background: #aa2222;
+}
+</style>
+</head>
+
+<body>
+
+<div class="toolbar">Vibration Controller</div>
+
+<div class="container">
+
+    <div class="slider-container">
+        <input type="range" min="0" max="100" value="50" id="intensity">
+        <div class="value" id="val">50%</div>
+    </div>
+
+    <div class="buttons">
+        <button onclick="vibrateOnce()">Single</button>
+        <button onclick="vibrateTwice()">Double</button>
+        <button onclick="vibrateTriple()">Triple</button>
+        <button onclick="startContinuous()">Continuous</button>
+    </div>
+
+    <button class="stop" onclick="stopVibration()">STOP</button>
+
+</div>
+
+<script>
+let intensity = 50;
+let interval = null;
+
+const slider = document.getElementById("intensity");
+const val = document.getElementById("val");
+
+slider.oninput = () => {
+    intensity = slider.value;
+    val.innerText = intensity + "%";
+};
+
+// Convert % → vibration timing
+function getDuration() {
+    return Math.floor(50 + intensity * 5); 
+}
+
+function getPause() {
+    return Math.floor(30 + (100 - intensity) * 2);
+}
+
+// Patterns
+function vibrateOnce() {
+    navigator.vibrate(getDuration());
+}
+
+function vibrateTwice() {
+    navigator.vibrate([
+        getDuration(), getPause(),
+        getDuration()
+    ]);
+}
+
+function vibrateTriple() {
+    navigator.vibrate([
+        getDuration(), getPause(),
+        getDuration(), getPause(),
+        getDuration()
+    ]);
+}
+
+// Continuous mode
+function startContinuous() {
+    stopVibration();
+
+    interval = setInterval(() => {
+        navigator.vibrate(getDuration());
+    }, getDuration() + getPause());
+}
+
+function stopVibration() {
+    navigator.vibrate(0);
+    if (interval) {
+        clearInterval(interval);
+        interval = null;
+    }
+}
+</script>
+
+</body>
+</html>
