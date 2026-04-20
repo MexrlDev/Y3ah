@@ -217,10 +217,9 @@
         const footerNote = document.getElementById('footerNote');
         const playerThemeToggle = document.getElementById('playerThemeToggle');
 
-        // Audio error logging for debugging (no visible text change)
+        // Audio error logging (silent – no UI change)
         audioPlayer.addEventListener('error', function(e) {
             console.warn('Audio playback error:', audioPlayer.error);
-            // Keep UI unchanged per request — browser controls will show error state if any
         });
 
         function applyTheme(isDark) {
@@ -266,6 +265,7 @@
         songArtistEl.textContent = artist;
 
         if (file) {
+            // Ensure correct URL encoding (once)
             audioPlayer.src = RAW_BASE_URL + encodeURIComponent(file);
         }
 
