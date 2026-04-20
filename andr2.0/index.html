@@ -271,11 +271,18 @@
                 title: "She's a Big Boy",
                 artist: "Artist Name",
                 filename: "She_s_a_big_boy.mp3",
-                cover: "IMG_7315.jpg"
+                cover: ""
+            },
+            {
+                id: "song2",
+                title: "Последний танец",
+                artist: "Культурное Наследие",
+                filename: "Последний%20танец%20-%20Культурное%20Наследие.mp3",
+                cover: ""
             }
         ];
 
-        // ---------- TRANSLATIONS (no emojis) ----------
+        // ---------- TRANSLATIONS ----------
         const i18n = {
             en: {
                 mainTitle: "Max Music",
@@ -517,7 +524,7 @@
             }, 2800);
         }
 
-        // Smooth language switch
+        // Smooth language switch – now saves preference
         let langSwitchTimer = null;
         function toggleLanguage() {
             if (langSwitchTimer) clearTimeout(langSwitchTimer);
@@ -525,6 +532,9 @@
             const currentIndex = LANG_ORDER.indexOf(currentLang);
             const nextIndex = (currentIndex + 1) % LANG_ORDER.length;
             currentLang = LANG_ORDER[nextIndex];
+            
+            // Save to localStorage
+            localStorage.setItem('max-music-lang', currentLang);
             
             updateStaticTexts();
             renderSongs();
@@ -539,8 +549,14 @@
             langSwitchTimer = setTimeout(() => { langSwitchTimer = null; }, 150);
         }
 
-        // ---------- INIT ----------
+        // ---------- INIT (with language persistence) ----------
         function init() {
+            // Load saved language
+            const savedLang = localStorage.getItem('max-music-lang');
+            if (savedLang && LANG_ORDER.includes(savedLang)) {
+                currentLang = savedLang;
+            }
+            
             initTheme();
             updateStaticTexts();
             renderSongs();
