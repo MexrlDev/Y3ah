@@ -476,11 +476,11 @@
                         coverHtml +
                         '<div class="song-info">' +
                             '<div class="song-title">' + escapeHtml(song.title) + '</div>' +
-                            '<div class="song-artist">' + escapeHtml(song.artist) + '</div>' +
+                            '<div class="song-artist">' + (song.artist ? escapeHtml(song.artist) : '') + '</div>' +
                         '</div>' +
                     '</div>' +
                     '<div class="song-actions">' +
-                        '<button class="action-btn play-btn" data-action="play" data-filename="' + escapeHtml(song.filename) + '" data-title="' + escapeHtml(song.title) + '" data-artist="' + escapeHtml(song.artist) + '" data-cover="' + escapeHtml(song.cover || '') + '">' + t.playBtn + '</button>' +
+                        '<button class="action-btn play-btn" data-action="play" data-filename="' + escapeHtml(song.filename) + '" data-title="' + escapeHtml(song.title) + '" data-artist="' + escapeHtml(song.artist || '') + '" data-cover="' + escapeHtml(song.cover || '') + '">' + t.playBtn + '</button>' +
                         '<button class="action-btn download-btn" data-action="download" data-filename="' + escapeHtml(song.filename) + '" data-title="' + escapeHtml(song.title) + '">' + t.downloadBtn + '</button>' +
                     '</div>' +
                 '</div>';
@@ -507,16 +507,30 @@
             var artist = btn.getAttribute('data-artist');
             var cover = btn.getAttribute('data-cover') || '';
             
-            var params = new URLSearchParams();
-            params.set('title', title);
-            params.set('artist', artist);
-            params.set('file', filename);
-            params.set('cover', cover);
-            params.set('lang', currentLang);
-            params.set('theme', body.classList.contains('dark') ? 'dark' : 'light');
+            // Build params for URL (keep as fallback)
+            var params = [];
+            params.push('title=' + encodeURIComponent(title));
+            params.push('artist=' + encodeURIComponent(artist));
+            params.push('file=' + encodeURIComponent(filename));
+            params.push('cover=' + encodeURIComponent(cover));
+            params.push('lang=' + encodeURIComponent(currentLang));
+            params.push('theme=' + encodeURIComponent(body.classList.contains('dark') ? 'dark' : 'light'));
+            var queryString = params.join('&');
             
-            // 🔁 FIX: Use location.href instead of window.open for WebView compatibility
-            window.location.href = 'player.html?' + params.toString();
+            // Store in sessionStorage for reliable retrieval in player
+            try {
+                sessionStorage.setItem('currentSong', JSON.stringify({
+                    title: title,
+                    artist: artist,
+                    file: filename,
+                    cover: cover,
+                    lang: currentLang,
+                    theme: body.classList.contains('dark') ? 'dark' : 'light'
+                }));
+            } catch(e) { /* ignore */ }
+            
+            // Navigate to player
+            window.location.href = 'player.html?' + queryString;
         }
 
         function onDownloadClick(e) {
