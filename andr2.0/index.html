@@ -16,6 +16,52 @@
             color: #1e293b;
             padding: 16px 12px 24px;
             min-height: 100vh;
+            transition: background 0.2s, color 0.2s;
+        }
+        body.dark {
+            background: #000000;
+            color: #ffffff;
+        }
+        body.dark .header h1,
+        body.dark .song-title,
+        body.dark .action-btn {
+            color: #ffffff;
+        }
+        body.dark .header p,
+        body.dark .song-artist,
+        body.dark .footer,
+        body.dark .status-message {
+            color: #cccccc;
+        }
+        body.dark .song-card,
+        body.dark .lang-btn,
+        body.dark .theme-btn,
+        body.dark .reset-btn,
+        body.dark .tools-btn,
+        body.dark .action-btn {
+            background: #1a1a1a;
+            border-color: #333333;
+            color: #ffffff;
+        }
+        body.dark .play-btn {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: white;
+        }
+        body.dark .status-message {
+            background: #1a1a1a;
+            color: #dddddd;
+        }
+        body.dark .status-message.error {
+            background: #330000;
+            color: #ffaaaa;
+        }
+        body.dark .status-message.success {
+            background: #003300;
+            color: #aaffaa;
+        }
+        body.dark .cover-thumb {
+            background: #333333;
         }
         .header {
             margin-bottom: 20px;
@@ -38,7 +84,13 @@
             color: #64748b;
             margin-top: 4px;
         }
-        .lang-btn {
+        .top-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 12px;
+            flex-wrap: wrap;
+        }
+        .lang-btn, .theme-btn, .reset-btn, .tools-btn {
             background: white;
             border: 1px solid #cbd5e1;
             border-radius: 30px;
@@ -49,9 +101,25 @@
             cursor: pointer;
             box-shadow: 0 1px 2px rgba(0,0,0,0.03);
             transition: all 0.2s;
-            margin-left: 12px;
+            text-decoration: none;
+            display: inline-block;
         }
-        .lang-btn:active {
+        .tools-btn {
+            background: #f8fafc;
+            font-size: 18px;
+            padding: 8px 14px;
+        }
+        .reset-btn {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+        body.dark .reset-btn {
+            background: #330000;
+            border-color: #550000;
+            color: #ff9999;
+        }
+        .lang-btn:active, .theme-btn:active, .reset-btn:active, .tools-btn:active {
             background: #f1f5f9;
         }
         .song-list {
@@ -166,14 +234,18 @@
         }
     </style>
 </head>
-<body>
-
+<body class="light">
 <div class="header">
     <div class="header-titles">
         <h1 id="mainTitle">Max Music</h1>
         <p id="mainSub">Your offline music library</p>
     </div>
-    <button class="lang-btn" id="langToggle">RU</button>
+    <div class="top-actions">
+        <a href="tools/toolset.html" class="tools-btn" title="Tools">🔧</a>
+        <button class="theme-btn" id="themeToggle" aria-label="Dark mode">Dark</button>
+        <button class="lang-btn" id="langToggle">RU</button>
+        <button class="reset-btn" id="resetBtn" title="Clear all data and restart">Reset</button>
+    </div>
 </div>
 
 <div id="status" class="status-message">
@@ -216,8 +288,10 @@
                 startingDownload: "Preparing download",
                 downloadError: "Download did not start? Tap again",
                 footer: "Tap play to listen, download to save offline",
-                langBtnNext: "RU",      // after EN -> RU
-                langBtnCycle: ["RU", "ES", "EN"],
+                langBtnNext: "RU",
+                themeDark: "Dark",
+                themeLight: "Light",
+                resetBtn: "Reset",
                 noCover: "No cover"
             },
             ru: {
@@ -236,7 +310,9 @@
                 downloadError: "Загрузка не началась? Нажмите ещё раз",
                 footer: "Нажмите «Слушать» для воспроизведения, «Скачать» для сохранения",
                 langBtnNext: "ES",
-                langBtnCycle: ["ES", "EN", "RU"],
+                themeDark: "Тёмная",
+                themeLight: "Светлая",
+                resetBtn: "Сброс",
                 noCover: "Без обложки"
             },
             es: {
@@ -251,7 +327,9 @@
                 downloadError: "¿La descarga no inicio? Toca de nuevo",
                 footer: "Toca Escuchar para reproducir, Descargar para guardar",
                 langBtnNext: "EN",
-                langBtnCycle: ["EN", "RU", "ES"],
+                themeDark: "Oscuro",
+                themeLight: "Claro",
+                resetBtn: "Reiniciar",
                 noCover: "Sin portada"
             }
         };
@@ -263,9 +341,45 @@
         const statusEl = document.getElementById('status');
         const songListEl = document.getElementById('songList');
         const langToggle = document.getElementById('langToggle');
+        const themeToggle = document.getElementById('themeToggle');
+        const resetBtn = document.getElementById('resetBtn');
         const mainTitle = document.getElementById('mainTitle');
         const mainSub = document.getElementById('mainSub');
         const footerText = document.getElementById('footerText');
+        const body = document.body;
+
+        // ---------- DARK MODE (pure black) ----------
+        function applyTheme(isDark) {
+            if (isDark) {
+                body.classList.add('dark');
+                body.classList.remove('light');
+                themeToggle.textContent = i18n[currentLang].themeLight;
+            } else {
+                body.classList.remove('dark');
+                body.classList.add('light');
+                themeToggle.textContent = i18n[currentLang].themeDark;
+            }
+            localStorage.setItem('max-music-theme', isDark ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('max-music-theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isDark = saved ? saved === 'dark' : prefersDark;
+            applyTheme(isDark);
+        }
+
+        function toggleTheme() {
+            const isDark = body.classList.contains('dark');
+            applyTheme(!isDark);
+        }
+
+        // ---------- RESET: clear all data and reload ----------
+        function resetAllData() {
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.reload(true);
+        }
 
         // ---------- HELPERS ----------
         function escapeHtml(text) {
@@ -283,8 +397,10 @@
             mainTitle.textContent = t.mainTitle;
             mainSub.textContent = t.mainSub;
             footerText.textContent = t.footer;
-            // Lang button shows next language code
             langToggle.textContent = t.langBtnNext;
+            resetBtn.textContent = t.resetBtn;
+            const isDark = body.classList.contains('dark');
+            themeToggle.textContent = isDark ? t.themeLight : t.themeDark;
         }
 
         function setStatusMessage(type, customKey, isError = false, isSuccess = false) {
@@ -293,7 +409,7 @@
             if (customKey === 'loading') message = t.statusLoading;
             else if (customKey === 'empty') message = t.statusEmpty;
             else if (customKey === 'songs') message = t.statusSongs(SONGS.length);
-            else message = customKey; // raw string
+            else message = customKey;
 
             statusEl.textContent = message;
             statusEl.className = 'status-message';
@@ -364,6 +480,7 @@
             params.set('file', filename);
             params.set('cover', cover);
             params.set('lang', currentLang);
+            params.set('theme', body.classList.contains('dark') ? 'dark' : 'light');
             
             const playerUrl = `player.html?${params.toString()}`;
             window.open(playerUrl, '_blank');
@@ -400,8 +517,11 @@
             }, 2800);
         }
 
-        // Cycle language en -> ru -> es -> en
+        // Smooth language switch
+        let langSwitchTimer = null;
         function toggleLanguage() {
+            if (langSwitchTimer) clearTimeout(langSwitchTimer);
+            
             const currentIndex = LANG_ORDER.indexOf(currentLang);
             const nextIndex = (currentIndex + 1) % LANG_ORDER.length;
             currentLang = LANG_ORDER[nextIndex];
@@ -415,13 +535,27 @@
             } else {
                 setStatusMessage('info', 'empty');
             }
+            
+            langSwitchTimer = setTimeout(() => { langSwitchTimer = null; }, 150);
         }
 
+        // ---------- INIT ----------
         function init() {
+            initTheme();
             updateStaticTexts();
             renderSongs();
             attachEvents();
+            
             langToggle.addEventListener('click', toggleLanguage);
+            themeToggle.addEventListener('click', toggleTheme);
+            resetBtn.addEventListener('click', resetAllData);
+            
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                if (!localStorage.getItem('max-music-theme')) {
+                    applyTheme(e.matches);
+                    updateStaticTexts();
+                }
+            });
         }
 
         init();
