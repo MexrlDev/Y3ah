@@ -67,18 +67,23 @@
             align-items: center;
             justify-content: center;
         }
+        /* Critical: ensure js-dos canvas container fills area */
         .dosbox-container {
             width: 100% !important;
             height: 100% !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
         }
-        .dosbox-container > .dosbox-overlay {
-            background: url(https://js-dos.com/cdn/DOOM.png);
-        }
-        canvas {
+        .dosbox-container > canvas {
             width: 100% !important;
             height: 100% !important;
             object-fit: contain;
             image-rendering: crisp-edges;
+        }
+        .dosbox-container > .dosbox-overlay {
+            background: url(https://js-dos.com/cdn/DOOM.png);
+            background-size: cover;
         }
         .loading {
             position: absolute;
@@ -223,7 +228,7 @@
     <button class="fullscreen-btn" id="fullscreenBtn">⛶ Fullscreen</button>
     <div class="hint">Three‑finger tap for keyboard</div>
     
-    <div class="gamepad" id="gamepadPanel">
+    <div class="gamepad hidden" id="gamepadPanel">
         <div class="dpad">
             <div class="dpad-row">
                 <div class="ctrl-btn" data-key="ArrowUp">↑</div>
@@ -247,11 +252,10 @@
     (function() {
         "use strict";
 
-        // Storage helpers
+        // ---------- Storage & i18n ----------
         function storageGet(key) {
             try { return localStorage.getItem(key); } catch(e) { return null; }
         }
-
         var savedLang = storageGet('max-music-lang') || 'en';
         var savedTheme = storageGet('max-music-theme') || 'dark';
         var lang = (['en','ru','es'].indexOf(savedLang) !== -1) ? savedLang : 'en';
@@ -262,9 +266,9 @@
         }
 
         var i18n = {
-            en: { back: '← Tools', title: 'DOOM', loading: 'Loading DOOM...', fullscreen: '⛶ Fullscreen' },
-            ru: { back: '← Инструменты', title: 'DOOM', loading: 'Загрузка DOOM...', fullscreen: '⛶ На весь экран' },
-            es: { back: '← Herramientas', title: 'DOOM', loading: 'Cargando DOOM...', fullscreen: '⛶ Pantalla completa' }
+            en: { back: '← Tools', title: 'DOOM', loading: 'Loading DOOM...', fullscreen: '⛶ Fullscreen', error: 'Failed to load DOOM (check connection)' },
+            ru: { back: '← Инструменты', title: 'DOOM', loading: 'Загрузка DOOM...', fullscreen: '⛶ На весь экран', error: 'Не удалось загрузить DOOM (проверьте соединение)' },
+            es: { back: '← Herramientas', title: 'DOOM', loading: 'Cargando DOOM...', fullscreen: '⛶ Pantalla completa', error: 'Error al cargar DOOM (revise la conexión)' }
         };
         document.getElementById('backLink').textContent = i18n[lang].back;
         document.getElementById('title').textContent = i18n[lang].title;
@@ -275,37 +279,58 @@
         var gamepadPanel = document.getElementById('gamepadPanel');
         var dosboxInstance = null;
 
-        // Absolute URL to DOOM shareware bundle (works from any origin)
-        // This is the same file used by the original example, but served from an absolute path.
+        // ---------- RELIABLE DOOM BUNDLE (js-dos official) ----------
+        // This is the exact same bundle used in the working example.
+        // It's hosted on the same CDN and known to work.
         var DOOM_ZIP = 'https://js-dos.com/cdn/DOOM-@evilution.zip';
 
-        // Fallback: if custom zip provided via ?zip=...
+        // Allow override via ?zip=... (still optional)
         var params = new URLSearchParams(window.location.search);
         var customZip = params.get('zip');
         if (customZip) DOOM_ZIP = customZip;
 
-        // Initialize Dosbox exactly as in the working example
+        // ---------- Timeout fallback ----------
+        var loadTimeout = setTimeout(function() {
+            loadingEl.querySelector('#loadingText').textContent = i18n[lang].error;
+            console.error('DOOM load timeout – ZIP may be unreachable.');
+        }, 15000);
+
+        // ---------- Init js-dos (with robust timing) ----------
         function initDosbox() {
             if (typeof Dosbox === 'undefined') {
-                document.getElementById('loadingText').textContent = 'js-dos API failed to load';
+                loadingEl.querySelector('#loadingText').textContent = 'js-dos API failed to load';
+                clearTimeout(loadTimeout);
                 return;
             }
 
             dosboxInstance = new Dosbox({
                 id: "dosbox",
                 onload: function(dosbox) {
-                    loadingEl.style.display = 'none';
-                    gamepadPanel.classList.remove('hidden');
-                    // Run DOOM with the absolute ZIP URL
-                    dosbox.run(DOOM_ZIP, "./doom");
+                    // Wait a tiny bit for DOM/emulator to settle before running
+                    setTimeout(function() {
+                        // Use the official run() method. It returns a promise on newer versions.
+                        var runPromise = dosbox.run(DOOM_ZIP, "./doom");
+                        if (runPromise && typeof runPromise.catch === 'function') {
+                            runPromise.catch(function(e) {
+                                clearTimeout(loadTimeout);
+                                loadingEl.querySelector('#loadingText').textContent = i18n[lang].error;
+                                console.error('dosbox.run() failed:', e);
+                            });
+                        }
+                        // Gamepad can be shown once run() is called; we'll also show when emulator starts
+                        // but keep hidden until then.
+                    }, 200);
                 },
                 onrun: function(dosbox, app) {
-                    console.log("App '" + app + "' is running");
+                    clearTimeout(loadTimeout);
+                    console.log("DOOM is now running");
+                    loadingEl.style.display = 'none';
+                    gamepadPanel.classList.remove('hidden');
                 }
             });
         }
 
-        // Fullscreen button
+        // ---------- Fullscreen ----------
         document.getElementById('fullscreenBtn').addEventListener('click', function() {
             if (dosboxInstance && dosboxInstance.requestFullScreen) {
                 dosboxInstance.requestFullScreen();
@@ -315,57 +340,45 @@
             }
         });
 
-        // On‑screen buttons (may not work with old API; fallback is virtual keyboard)
+        // ---------- On‑screen key injection ----------
         function sendKey(keyCode) {
             if (!dosboxInstance) return;
-            if (dosboxInstance.sendKey) {
+            // Try both known API methods
+            if (typeof dosboxInstance.sendKey === 'function') {
                 dosboxInstance.sendKey(keyCode);
-            } else if (dosboxInstance.sendKeyPress) {
+            } else if (typeof dosboxInstance.sendKeyPress === 'function') {
                 dosboxInstance.sendKeyPress(keyCode);
             }
-            // If no method exists, user should use three‑finger tap.
+            // Fallback: user can use three-finger tap for virtual keyboard
         }
 
         function attachControls() {
             var buttons = document.querySelectorAll('[data-key]');
-            for (var i = 0; i < buttons.length; i++) {
-                var btn = buttons[i];
-                btn.addEventListener('touchstart', function(e) {
+            buttons.forEach(function(btn) {
+                function press(e) {
                     e.preventDefault();
-                    var key = this.getAttribute('data-key');
+                    var key = btn.getAttribute('data-key');
                     sendKey(key);
-                    this.style.background = '#3b82f6';
-                });
-                btn.addEventListener('touchend', function(e) {
+                    btn.style.background = '#3b82f6';
+                }
+                function release(e) {
                     e.preventDefault();
-                    this.style.background = '';
-                });
-                btn.addEventListener('mousedown', function(e) {
-                    e.preventDefault();
-                    var key = this.getAttribute('data-key');
-                    sendKey(key);
-                    this.style.background = '#3b82f6';
-                });
-                btn.addEventListener('mouseup', function(e) {
-                    e.preventDefault();
-                    this.style.background = '';
-                });
-                btn.addEventListener('mouseleave', function() {
-                    this.style.background = '';
-                });
-            }
+                    btn.style.background = '';
+                }
+                btn.addEventListener('touchstart', press, {passive: false});
+                btn.addEventListener('touchend', release);
+                btn.addEventListener('mousedown', press);
+                btn.addEventListener('mouseup', release);
+                btn.addEventListener('mouseleave', release);
+            });
         }
 
-        // Prevent default touch events on canvas
+        // Prevent default touch events on canvas (avoids zoom/pull-to-refresh)
         var container = document.getElementById('dosbox');
-        container.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-        }, { passive: false });
-        container.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-        });
+        container.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
+        container.addEventListener('contextmenu', function(e) { e.preventDefault(); });
 
-        // Start
+        // ---------- Start ----------
         initDosbox();
         attachControls();
     })();
