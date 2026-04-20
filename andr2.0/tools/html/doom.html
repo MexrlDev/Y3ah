@@ -71,6 +71,9 @@
             width: 100% !important;
             height: 100% !important;
         }
+        .dosbox-container > .dosbox-overlay {
+            background: url(https://js-dos.com/cdn/DOOM.png);
+        }
         canvas {
             width: 100% !important;
             height: 100% !important;
@@ -190,6 +193,17 @@
             color: #1e293b;
             border-color: #ccc;
         }
+        .hint {
+            position: absolute;
+            bottom: 100px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: #aaa;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 150;
+        }
     </style>
 </head>
 <body class="dark">
@@ -207,6 +221,7 @@
     </div>
     
     <button class="fullscreen-btn" id="fullscreenBtn">⛶ Fullscreen</button>
+    <div class="hint">Three‑finger tap for keyboard</div>
     
     <div class="gamepad" id="gamepadPanel">
         <div class="dpad">
@@ -256,24 +271,23 @@
         document.getElementById('loadingText').textContent = i18n[lang].loading;
         document.getElementById('fullscreenBtn').textContent = i18n[lang].fullscreen;
 
-        var container = document.getElementById('dosbox');
         var loadingEl = document.getElementById('loading-message');
         var gamepadPanel = document.getElementById('gamepadPanel');
         var dosboxInstance = null;
 
-        // Determine ZIP file to load
+        // Absolute URL to DOOM shareware bundle (works from any origin)
+        // This is the same file used by the original example, but served from an absolute path.
+        var DOOM_ZIP = 'https://js-dos.com/cdn/DOOM-@evilution.zip';
+
+        // Fallback: if custom zip provided via ?zip=...
         var params = new URLSearchParams(window.location.search);
         var customZip = params.get('zip');
-        // Default to the working example ZIP (adjust if needed)
-        var DEFAULT_ZIP = 'upload/DOOM-@evilution.zip';  // relative to js-dos.com/cdn ? Try absolute:
-        // The example used "upload/DOOM-@evilution.zip" – we'll host our own or use absolute URL:
-        // Let's use a reliable shareware bundle:
-        var ZIP_URL = customZip || 'https://js-dos.com/cdn/DOOM-@evilution.zip';
+        if (customZip) DOOM_ZIP = customZip;
 
-        // Initialize Dosbox (old API)
+        // Initialize Dosbox exactly as in the working example
         function initDosbox() {
             if (typeof Dosbox === 'undefined') {
-                loadingEl.querySelector('#loadingText').textContent = 'API not loaded';
+                document.getElementById('loadingText').textContent = 'js-dos API failed to load';
                 return;
             }
 
@@ -282,8 +296,8 @@
                 onload: function(dosbox) {
                     loadingEl.style.display = 'none';
                     gamepadPanel.classList.remove('hidden');
-                    // Run DOOM with the ZIP
-                    dosbox.run(ZIP_URL, "./doom");
+                    // Run DOOM with the absolute ZIP URL
+                    dosbox.run(DOOM_ZIP, "./doom");
                 },
                 onrun: function(dosbox, app) {
                     console.log("App '" + app + "' is running");
@@ -291,29 +305,25 @@
             });
         }
 
-        // Request fullscreen via Dosbox API
+        // Fullscreen button
         document.getElementById('fullscreenBtn').addEventListener('click', function() {
             if (dosboxInstance && dosboxInstance.requestFullScreen) {
                 dosboxInstance.requestFullScreen();
             } else {
-                // Fallback: try to fullscreen the container
                 var el = document.getElementById('dosbox-container');
                 if (el.requestFullscreen) el.requestFullscreen();
             }
         });
 
-        // On-screen button key sending (old API may not have sendKey, so we skip if unavailable)
+        // On‑screen buttons (may not work with old API; fallback is virtual keyboard)
         function sendKey(keyCode) {
             if (!dosboxInstance) return;
-            // Try known methods
             if (dosboxInstance.sendKey) {
                 dosboxInstance.sendKey(keyCode);
             } else if (dosboxInstance.sendKeyPress) {
                 dosboxInstance.sendKeyPress(keyCode);
-            } else {
-                // No direct key API – user must use virtual keyboard (three-finger tap)
-                console.log('Key sending not supported in this API version');
             }
+            // If no method exists, user should use three‑finger tap.
         }
 
         function attachControls() {
@@ -347,6 +357,7 @@
         }
 
         // Prevent default touch events on canvas
+        var container = document.getElementById('dosbox');
         container.addEventListener('touchstart', function(e) {
             e.preventDefault();
         }, { passive: false });
