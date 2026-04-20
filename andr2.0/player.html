@@ -157,7 +157,8 @@
     <div class="song-title" id="songTitle">—</div>
     <div class="song-artist" id="songArtist">—</div>
     
-    <audio id="audioPlayer" controls preload="metadata"></audio>
+    <!-- ✅ Added playsinline and crossorigin for WebView compatibility -->
+    <audio id="audioPlayer" controls preload="metadata" playsinline crossorigin="anonymous"></audio>
     
     <div class="player-footer" id="footerNote"></div>
 </div>
@@ -214,6 +215,11 @@
         const audioPlayer = document.getElementById('audioPlayer');
         const footerNote = document.getElementById('footerNote');
         const playerThemeToggle = document.getElementById('playerThemeToggle');
+
+        // Silent error logging (no UI change)
+        audioPlayer.addEventListener('error', function() {
+            console.warn('Audio error:', audioPlayer.error);
+        });
 
         function applyTheme(isDark) {
             if (isDark) {
