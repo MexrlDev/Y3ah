@@ -9,6 +9,8 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -17,6 +19,8 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            position: fixed;
+            inset: 0;
         }
         body.light {
             background: #f5f7fa;
@@ -25,10 +29,11 @@
         .toolbar {
             display: flex;
             align-items: center;
-            padding: 12px 16px;
+            padding: 10px 16px;
             gap: 12px;
             background: #1a1a1a;
             border-bottom: 1px solid #333;
+            flex-shrink: 0;
         }
         body.light .toolbar {
             background: white;
@@ -47,41 +52,124 @@
             font-weight: 600;
             flex: 1;
         }
-        .hint {
-            font-size: 14px;
-            opacity: 0.8;
-            margin-right: 8px;
-        }
-        #dos-container {
+        #game-area {
             flex: 1;
-            width: 100%;
+            position: relative;
             background: #000;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        canvas {
+        #dos-container {
             width: 100%;
             height: 100%;
+            display: flex;
+        }
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
             object-fit: contain;
-            image-rendering: crisp-edges; /* pixelated look */
+            image-rendering: crisp-edges;
         }
         .loading {
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.7);
+            background: rgba(0,0,0,0.8);
             color: white;
             padding: 16px 24px;
             border-radius: 40px;
             font-size: 18px;
             z-index: 100;
+            pointer-events: none;
         }
         body.light .loading {
             background: rgba(255,255,255,0.9);
             color: black;
             border: 1px solid #ccc;
+        }
+        /* On‑screen gamepad */
+        .gamepad {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 12px;
+            pointer-events: none;
+            z-index: 200;
+        }
+        .dpad {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: auto;
+        }
+        .dpad-row {
+            display: flex;
+            justify-content: center;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            pointer-events: auto;
+        }
+        .ctrl-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(4px);
+            border: 2px solid #555;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 4px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: all 0.05s;
+            user-select: none;
+        }
+        body.light .ctrl-btn {
+            background: rgba(240, 240, 240, 0.8);
+            border-color: #ccc;
+            color: #1e293b;
+        }
+        .ctrl-btn:active {
+            background: #3b82f6;
+            border-color: #2563eb;
+            transform: scale(0.92);
+        }
+        .fire-btn {
+            background: rgba(180, 30, 30, 0.9);
+            border-color: #ff4444;
+            width: 70px;
+            height: 70px;
+            border-radius: 35px;
+            font-size: 20px;
+        }
+        .fire-btn:active {
+            background: #ff0000;
+        }
+        .small-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 18px;
+        }
+        .keyboard-hint {
+            color: #aaa;
+            font-size: 12px;
+            margin-top: 8px;
+            text-align: center;
+        }
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
@@ -89,88 +177,182 @@
 <div class="toolbar">
     <a href="../toolset.html" class="back-link" id="backLink">← Tools</a>
     <h1 id="title">DOOM (Shareware)</h1>
-    <span class="hint">Tap screen for controls</span>
 </div>
 
-<div id="dos-container">
+<div id="game-area">
+    <div id="dos-container"></div>
     <div id="loading-message" class="loading">Loading DOOM...</div>
+    
+    <!-- On-screen controls -->
+    <div class="gamepad" id="gamepadPanel">
+        <div class="dpad">
+            <div class="dpad-row">
+                <div class="ctrl-btn" data-key="ArrowUp">↑</div>
+            </div>
+            <div class="dpad-row">
+                <div class="ctrl-btn" data-key="ArrowLeft">←</div>
+                <div class="ctrl-btn" data-key="ArrowDown">↓</div>
+                <div class="ctrl-btn" data-key="ArrowRight">→</div>
+            </div>
+        </div>
+        <div class="action-buttons">
+            <div class="ctrl-btn small-btn" data-key="ControlLeft">Ctrl</div>
+            <div class="ctrl-btn fire-btn" data-key="Space">⚡</div>
+            <div class="ctrl-btn small-btn" data-key="Enter">↵</div>
+        </div>
+    </div>
 </div>
 
 <script>
     (function() {
-        // Safe localStorage
+        "use strict";
+
+        // ---------- Storage helpers ----------
         function storageGet(key) {
             try { return localStorage.getItem(key); } catch(e) { return null; }
         }
 
-        // Load preferences for theme and language (minimal)
         var savedLang = storageGet('max-music-lang') || 'en';
         var savedTheme = storageGet('max-music-theme') || 'dark';
         var lang = (['en','ru','es'].indexOf(savedLang) !== -1) ? savedLang : 'en';
 
-        // Apply theme (body is dark by default)
         if (savedTheme === 'light') {
             document.body.classList.add('light');
             document.body.classList.remove('dark');
         }
 
-        // i18n for tiny bits
         var i18n = {
-            en: { back: '← Tools', title: 'DOOM (Shareware)', loading: 'Loading DOOM...' },
-            ru: { back: '← Инструменты', title: 'DOOM (Shareware)', loading: 'Загрузка DOOM...' },
-            es: { back: '← Herramientas', title: 'DOOM (Shareware)', loading: 'Cargando DOOM...' }
+            en: { back: '← Tools', title: 'DOOM (Shareware)', loading: 'Loading DOOM...', error: 'Failed to load. Tap to retry.' },
+            ru: { back: '← Инструменты', title: 'DOOM (Shareware)', loading: 'Загрузка DOOM...', error: 'Ошибка загрузки. Нажмите для повтора.' },
+            es: { back: '← Herramientas', title: 'DOOM (Shareware)', loading: 'Cargando DOOM...', error: 'Error al cargar. Toca para reintentar.' }
         };
         document.getElementById('backLink').textContent = i18n[lang].back;
         document.getElementById('title').textContent = i18n[lang].title;
-        document.getElementById('loading-message').textContent = i18n[lang].loading;
-
-        // Load js-dos and run DOOM
-        var container = document.getElementById('dos-container');
         var loadingEl = document.getElementById('loading-message');
+        loadingEl.textContent = i18n[lang].loading;
 
-        // Use js-dos v8 (latest stable) from CDN
-        var script = document.createElement('script');
-        script.src = 'https://js-dos.com/v8/dist/js-dos.js';
-        script.onload = function() {
-            // Initialize Dos emulator
+        var container = document.getElementById('dos-container');
+        var runtimeInstance = null;
+
+        // ---------- Load js-dos with reliable bundle ----------
+        function initDos() {
+            if (typeof Dos === 'undefined') {
+                var script = document.createElement('script');
+                script.src = 'https://js-dos.com/v8/dist/js-dos.js';
+                script.onload = function() {
+                    startEmulator();
+                };
+                script.onerror = function() {
+                    loadingEl.textContent = 'Cannot load js-dos library.';
+                };
+                document.head.appendChild(script);
+            } else {
+                startEmulator();
+            }
+        }
+
+        function startEmulator() {
             Dos(container, {
-                url: 'https://doszone-uploads.s3.eu-central-1.amazonaws.com/doom.jsdos',
+                // Official js-dos DOOM shareware bundle (always available)
+                url: 'https://js-dos.com/v8/dist/examples/doom.jsdos',
                 theme: savedTheme === 'light' ? 'light' : 'dark',
                 backend: 'webgl',
                 autoStart: true,
                 noSideBar: true,
                 kiosk: true,
             }).then(function(runtime) {
+                runtimeInstance = runtime;
                 loadingEl.style.display = 'none';
-                // Add touch-friendly hint after load
+                // Hide loading message
+                // Show gamepad
+                document.getElementById('gamepadPanel').classList.remove('hidden');
+                
+                // Optional: add a small hint
                 setTimeout(function() {
                     var hint = document.createElement('div');
                     hint.style.position = 'absolute';
-                    hint.style.bottom = '20px';
+                    hint.style.bottom = '100px';
                     hint.style.left = '0';
                     hint.style.right = '0';
                     hint.style.textAlign = 'center';
                     hint.style.color = '#aaa';
                     hint.style.fontSize = '12px';
                     hint.style.pointerEvents = 'none';
-                    hint.style.textShadow = '1px 1px 2px black';
-                    hint.innerText = 'Tap center to fire • Two fingers for strafe • Pinch to zoom?';
-                    container.appendChild(hint);
-                    setTimeout(function() { hint.style.opacity = '0'; }, 5000);
-                }, 2000);
+                    hint.innerText = 'Use on‑screen buttons below';
+                    document.getElementById('game-area').appendChild(hint);
+                    setTimeout(function() { hint.remove(); }, 4000);
+                }, 1000);
             }).catch(function(err) {
-                loadingEl.textContent = 'Failed to load DOOM: ' + err;
+                console.error(err);
+                loadingEl.textContent = i18n[lang].error;
+                loadingEl.style.cursor = 'pointer';
+                loadingEl.addEventListener('click', function() {
+                    location.reload();
+                });
             });
-        };
-        script.onerror = function() {
-            loadingEl.textContent = 'Error loading js-dos. Check connection.';
-        };
-        document.head.appendChild(script);
+        }
 
-        // Prevent accidental back gesture on canvas
+        // ---------- On‑screen button handling (send keys to emulator) ----------
+        function sendKeyToDos(keyCode) {
+            if (!runtimeInstance) return;
+            try {
+                // js-dos v8 API: sendKeyPress or sendKey
+                if (runtimeInstance.sendKeyPress) {
+                    runtimeInstance.sendKeyPress(keyCode);
+                } else if (runtimeInstance.sendKey) {
+                    runtimeInstance.sendKey(keyCode);
+                } else if (runtimeInstance.emulator && runtimeInstance.emulator.sendKey) {
+                    runtimeInstance.emulator.sendKey(keyCode);
+                }
+            } catch (e) {
+                console.warn('Key send failed', e);
+            }
+        }
+
+        function attachControls() {
+            var buttons = document.querySelectorAll('[data-key]');
+            for (var i = 0; i < buttons.length; i++) {
+                var btn = buttons[i];
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    var key = this.getAttribute('data-key');
+                    sendKeyToDos(key);
+                    // Visual feedback
+                    this.style.background = '#3b82f6';
+                });
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.style.background = '';
+                });
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    var key = this.getAttribute('data-key');
+                    sendKeyToDos(key);
+                    this.style.background = '#3b82f6';
+                });
+                btn.addEventListener('mouseup', function(e) {
+                    e.preventDefault();
+                    this.style.background = '';
+                });
+                btn.addEventListener('mouseleave', function() {
+                    this.style.background = '';
+                });
+            }
+        }
+
+        // Prevent default touch events on canvas
         container.addEventListener('touchstart', function(e) {
             e.preventDefault();
         }, { passive: false });
+        container.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Start everything
+        initDos();
+        attachControls();
+
+        // Also allow three-finger tap to toggle keyboard (built into js-dos)
     })();
 </script>
 </body>
