@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Max Music</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f7fa;
+            color: #1e293b;
+            padding: 16px 12px 24px;
+            min-height: 100vh;
+        }
+        .header {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }
+        .header p {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 6px;
+        }
+        .song-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .song-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+            border: 1px solid #e2e8f0;
+        }
+        .song-info {
+            flex: 1;
+        }
+        .song-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+            color: #0f172a;
+        }
+        .song-artist {
+            font-size: 14px;
+            color: #64748b;
+        }
+        .download-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(59,130,246,0.2);
+            transition: background 0.2s, transform 0.1s;
+            border: 1px solid rgba(255,255,255,0.1);
+            min-width: 90px;
+            text-align: center;
+        }
+        .download-btn:active {
+            background: #2563eb;
+            transform: scale(0.96);
+        }
+        .download-btn.loading {
+            background: #94a3b8;
+            pointer-events: none;
+        }
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+        }
+        .status-message {
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            border-radius: 40px;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Music</h1>
+        <p>Your music library</p>
+    </div>
+
+    <div id="status" class="status-message">
+        Ready to download
+    </div>
+
+    <div class="song-list" id="songList">
+        <!-- Songs will be injected here by JavaScript -->
+    </div>
+
+    <div class="footer">
+        Tap download to save songs for offline listening
+    </div>
+
+    <script>
+        // ==============================================
+        // CONFIGURATION – Update with your actual song list
+        // ==============================================
+        const SONGS = [
+     {
+    "id": "song1",
+    "title": "She's a Big Boy",
+    "artist": "Artist Name",
+    "filename": "She_s_a_big_boy.mp3",
+    "cover": "she_big_boy.jpg"
+     }     
+        ];
+
+        // ==============================================
+        // BUILD THE UI
+        // ==============================================
+        const songListEl = document.getElementById('songList');
+        const statusEl = document.getElementById('status');
+
+        function renderSongs() {
+            let html = '';
+            SONGS.forEach(song => {
+                html += `
+                    <div class="song-card">
+                        <div class="song-info">
+                            <div class="song-title">${escapeHtml(song.title)}</div>
+                            <div class="song-artist">${escapeHtml(song.artist)}</div>
+                        </div>
+                        <button class="download-btn" data-filename="${escapeHtml(song.filename)}" data-title="${escapeHtml(song.title)}">
+                            Download
+                        </button>
+                    </div>
+                `;
+            });
+            songListEl.innerHTML = html;
+
+            // Attach event listeners to all download buttons
+            document.querySelectorAll('.download-btn').forEach(btn => {
+                btn.addEventListener('click', onDownloadClick);
+            });
+        }
+
+        // Simple escape for HTML attributes
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // ==============================================
+        // DOWNLOAD HANDLER – Works with your patched app
+        // ==============================================
+        function onDownloadClick(event) {
+            const btn = event.currentTarget;
+            const filename = btn.getAttribute('data-filename');
+            const title = btn.getAttribute('data-title');
+
+            // Prevent double-click
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.textContent = 'Starting...';
+
+            statusEl.textContent = `⏳ Preparing download: ${title}`;
+            statusEl.style.background = '#fef9c3';
+            statusEl.style.color = '#854d0e';
+
+            // ==============================================
+            // IMPORTANT: This URL pattern triggers the app's native downloader
+            // The smali code in BaseFragment$WebBrowser intercepts any URL
+            // containing "download.php" and handles the download.
+            // ==============================================
+            const downloadUrl = `http://shuhayda.com/download.php?file=${encodeURIComponent(filename)}`;
+
+            // Attempt to navigate to the download URL.
+            // The WebView will intercept this and start the native download.
+            window.location.href = downloadUrl;
+
+            // Reset button after a short delay (in case download fails silently)
+            setTimeout(() => {
+                if (btn.disabled) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.textContent = 'Download';
+                    statusEl.textContent = '⚠️ Download did not start? Tap again';
+                    statusEl.style.background = '#fee2e2';
+                    statusEl.style.color = '#991b1b';
+                }
+            }, 3000);
+
+            // Also provide a fallback: if the app doesn't intercept,
+            // the browser would try to load the URL. But we assume the app works.
+        }
+
+        // Optional: Listen for messages from the app (if it uses JavaScript interface)
+        // This is not required but can be used for advanced feedback.
+        window.addEventListener('load', () => {
+            renderSongs();
+            statusEl.textContent = '✅ Ready — choose a song to download';
+        });
+
+        // If the app calls window.downloadStarted() or similar, we can update UI.
+        // For now, keep it simple.
+    </script>
+</body>
+</html>
