@@ -1,445 +1,277 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-mobile="true">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DOOM · Max Tools</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>DOOM · DOS Zone Launcher</title>
+    <!-- Same js-dos CSS & JS as the original working page -->
+    <link rel="stylesheet" href="https://br.cdn.dos.zone/js-dos/latest/js-dos.css">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #000000;
-            color: #ffffff;
-            min-height: 100vh;
+            background: #0a0a0a;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            position: fixed;
-            inset: 0;
+            overflow: hidden;
         }
-        body.light {
-            background: #f5f7fa;
-            color: #1e293b;
-        }
-        .toolbar {
+        /* Toolbar – exactly like original’s e-navbar style */
+        .launcher-bar {
+            background: #1e1e2f;
+            color: white;
             display: flex;
             align-items: center;
-            padding: 10px 16px;
-            gap: 12px;
-            background: #1a1a1a;
+            justify-content: space-between;
+            padding: 8px 16px;
             border-bottom: 1px solid #333;
             flex-shrink: 0;
         }
-        body.light .toolbar {
-            background: white;
-            border-bottom-color: #e2e8f0;
+        .title-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         .back-link {
             color: #60a5fa;
             text-decoration: none;
             font-weight: 500;
         }
-        body.light .back-link {
-            color: #3b82f6;
+        .back-link:hover {
+            text-decoration: underline;
         }
         h1 {
-            font-size: 20px;
+            font-size: 1.25rem;
             font-weight: 600;
-            flex: 1;
         }
-        #game-area {
+        .controls {
+            display: flex;
+            gap: 12px;
+        }
+        .ctrl-icon {
+            background: none;
+            border: none;
+            color: #ccc;
+            font-size: 1.3rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .ctrl-icon:hover {
+            background: #2a2a3a;
+            color: white;
+        }
+        /* Game container – full remaining space */
+        .game-container {
             flex: 1;
             position: relative;
-            background: #000;
+            background: black;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        #dosbox-container {
+        /* jsdos element fills its parent */
+        .jsdos {
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: #000;
         }
-        /* Critical: ensure js-dos canvas container fills area */
-        .dosbox-container {
-            width: 100% !important;
-            height: 100% !important;
-            display: flex !important;
-            align-items: center;
-            justify-content: center;
-        }
-        .dosbox-container > canvas {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain;
-            image-rendering: crisp-edges;
-        }
-        .dosbox-container > .dosbox-overlay {
-            background: url(https://js-dos.com/cdn/DOOM.png);
-            background-size: cover;
-        }
-        .loading {
+        /* fallback loading overlay (js-dos will replace it) */
+        .loading-overlay {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.8);
             color: white;
-            padding: 16px 24px;
+            padding: 12px 24px;
             border-radius: 40px;
-            font-size: 18px;
-            z-index: 100;
+            font-size: 1rem;
+            z-index: 10;
             pointer-events: none;
-            text-align: center;
+            white-space: nowrap;
         }
-        body.light .loading {
-            background: rgba(255,255,255,0.9);
-            color: black;
-            border: 1px solid #ccc;
-        }
-        .gamepad {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 12px;
-            pointer-events: none;
-            z-index: 200;
-        }
-        .dpad {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: auto;
-        }
-        .dpad-row {
-            display: flex;
-            justify-content: center;
-        }
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            pointer-events: auto;
-        }
-        .ctrl-btn {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            background: rgba(30, 30, 30, 0.8);
-            backdrop-filter: blur(4px);
-            border: 2px solid #555;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 4px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transition: all 0.05s;
-            user-select: none;
-        }
-        body.light .ctrl-btn {
-            background: rgba(240, 240, 240, 0.8);
-            border-color: #ccc;
-            color: #1e293b;
-        }
-        .ctrl-btn:active {
-            background: #3b82f6;
-            border-color: #2563eb;
-            transform: scale(0.92);
-        }
-        .fire-btn {
-            background: rgba(180, 30, 30, 0.9);
-            border-color: #ff4444;
-            width: 70px;
-            height: 70px;
-            border-radius: 35px;
-            font-size: 20px;
-        }
-        .fire-btn:active {
-            background: #ff0000;
-        }
-        .small-btn {
-            width: 50px;
-            height: 50px;
-            font-size: 18px;
-        }
-        .hidden {
-            display: none !important;
-        }
-        .fullscreen-btn {
-            position: absolute;
-            top: 70px;
-            right: 12px;
-            background: rgba(0,0,0,0.6);
-            color: white;
-            border: 1px solid #555;
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            z-index: 50;
-            pointer-events: auto;
-        }
-        body.light .fullscreen-btn {
-            background: rgba(255,255,255,0.8);
-            color: #1e293b;
-            border-color: #ccc;
-        }
+        /* Optional small hint */
         .hint {
             position: absolute;
-            bottom: 100px;
+            bottom: 12px;
             left: 0;
             right: 0;
             text-align: center;
+            font-size: 0.7rem;
             color: #aaa;
-            font-size: 12px;
+            background: rgba(0,0,0,0.5);
+            width: fit-content;
+            margin: 0 auto;
+            padding: 4px 12px;
+            border-radius: 20px;
             pointer-events: none;
-            z-index: 150;
+            z-index: 20;
         }
-        /* Error message style */
-        .loading.error {
-            background: rgba(180, 30, 30, 0.9);
-            color: white;
-        }
-        body.light .loading.error {
-            background: rgba(200, 40, 40, 0.9);
-            color: white;
+        /* mobile touch improvements */
+        @media (max-width: 768px) {
+            .ctrl-icon {
+                font-size: 1rem;
+                padding: 4px 6px;
+            }
         }
     </style>
 </head>
-<body class="dark">
-<div class="toolbar">
-    <a href="../toolset.html" class="back-link" id="backLink">← Tools</a>
-    <h1 id="title">DOOM</h1>
-</div>
-
-<div id="game-area">
-    <div id="dosbox-container">
-        <div id="dosbox"></div>
+<body data-mobile="true">
+<div class="launcher-bar">
+    <div class="title-area">
+        <a href="#" class="back-link" id="backLink">← Launcher</a>
+        <h1>DOOM (1993)</h1>
     </div>
-    <div id="loading-message" class="loading">
-        <span id="loadingText">Loading DOOM...</span>
-    </div>
-    
-    <button class="fullscreen-btn" id="fullscreenBtn">⛶ Fullscreen</button>
-    <div class="hint">Three‑finger tap for keyboard</div>
-    
-    <div class="gamepad hidden" id="gamepadPanel">
-        <div class="dpad">
-            <div class="dpad-row">
-                <div class="ctrl-btn" data-key="ArrowUp">↑</div>
-            </div>
-            <div class="dpad-row">
-                <div class="ctrl-btn" data-key="ArrowLeft">←</div>
-                <div class="ctrl-btn" data-key="ArrowDown">↓</div>
-                <div class="ctrl-btn" data-key="ArrowRight">→</div>
-            </div>
-        </div>
-        <div class="action-buttons">
-            <div class="ctrl-btn small-btn" data-key="ControlLeft">Ctrl</div>
-            <div class="ctrl-btn fire-btn" data-key="Space">⚡</div>
-            <div class="ctrl-btn small-btn" data-key="Enter">↵</div>
-        </div>
+    <div class="controls">
+        <button class="ctrl-icon" id="reloadBtn" title="Reload DOOM">⟳</button>
+        <button class="ctrl-icon" id="fullscreenBtn" title="Fullscreen">⛶</button>
     </div>
 </div>
+<div class="game-container">
+    <!-- The magic div: js-dos will automatically initialize DOOM from this exact .jsdos bundle -->
+    <div class="jsdos"
+         data-url="https://cdn.dos.zone/custom/dos/doom.jsdos"
+         data-bg="https://dos.zone/images/containers/assets/backgrounds/doom_1.jpg/fe8f7f08ddbeced41a847eca0dcd5bbf.webp"
+         data-lang="en">
+    </div>
+    <div class="loading-overlay" id="loadingMsg">Loading DOOM ...</div>
+    <div class="hint">Tap screen to focus | Fullscreen for best experience</div>
+</div>
 
-<!-- js-dos API (latest stable) -->
-<script type="text/javascript" src="https://js-dos.com/cdn/js-dos-api.js"></script>
+<!-- js-dos library – same version as original working site -->
+<script src="https://br.cdn.dos.zone/js-dos/latest/js-dos.js"></script>
 <script>
     (function() {
-        "use strict";
+        // Wait for js-dos to be ready and auto-initialize the .jsdos element
+        let gameContainer = document.querySelector('.jsdos');
+        let loadingDiv = document.getElementById('loadingMsg');
+        let reloadBtn = document.getElementById('reloadBtn');
+        let fullscreenBtn = document.getElementById('fullscreenBtn');
+        let dosInstance = null;
 
-        // ---------- Storage & i18n ----------
-        function storageGet(key) {
-            try { return localStorage.getItem(key); } catch(e) { return null; }
-        }
-        var savedLang = storageGet('max-music-lang') || 'en';
-        var savedTheme = storageGet('max-music-theme') || 'dark';
-        var lang = (['en','ru','es'].indexOf(savedLang) !== -1) ? savedLang : 'en';
-
-        if (savedTheme === 'light') {
-            document.body.classList.add('light');
-            document.body.classList.remove('dark');
-        }
-
-        var i18n = {
-            en: { 
-                back: '← Tools', 
-                title: 'DOOM', 
-                loading: 'Loading DOOM...', 
-                fullscreen: '⛶ Fullscreen', 
-                error: 'Failed to load DOOM. Check connection.',
-                timeout: 'Loading taking too long. Try refreshing.'
-            },
-            ru: { 
-                back: '← Инструменты', 
-                title: 'DOOM', 
-                loading: 'Загрузка DOOM...', 
-                fullscreen: '⛶ На весь экран', 
-                error: 'Не удалось загрузить DOOM. Проверьте соединение.',
-                timeout: 'Загрузка занимает слишком много времени. Попробуйте обновить.'
-            },
-            es: { 
-                back: '← Herramientas', 
-                title: 'DOOM', 
-                loading: 'Cargando DOOM...', 
-                fullscreen: '⛶ Pantalla completa', 
-                error: 'Error al cargar DOOM. Revise la conexión.',
-                timeout: 'La carga está tardando demasiado. Intente recargar.'
-            }
-        };
-        document.getElementById('backLink').textContent = i18n[lang].back;
-        document.getElementById('title').textContent = i18n[lang].title;
-        document.getElementById('loadingText').textContent = i18n[lang].loading;
-        document.getElementById('fullscreenBtn').textContent = i18n[lang].fullscreen;
-
-        var loadingEl = document.getElementById('loading-message');
-        var loadingTextEl = document.getElementById('loadingText');
-        var gamepadPanel = document.getElementById('gamepadPanel');
-        var dosboxInstance = null;
-        var loadTimedOut = false;
-
-        // ---------- RELIABLE DOOM BUNDLE ----------
-        // Official js-dos CDN URL (works on all modern browsers)
-        var DOOM_ZIP = 'https://js-dos.com/cdn/DOOM-@evilution.zip';
-        
-        // Allow override via ?zip=...
-        var params = new URLSearchParams(window.location.search);
-        var customZip = params.get('zip');
-        if (customZip) DOOM_ZIP = customZip;
-
-        // ---------- Error & Timeout Handling ----------
-        function showError(message) {
-            if (loadTimedOut) return;
-            loadTimedOut = true;
-            loadingEl.classList.add('error');
-            loadingTextEl.textContent = message;
-            console.error('DOOM loader error:', message);
+        // Helper: get the running dos instance from the global js-dos API
+        function getDosInstance() {
+            // js-dos usually exposes the instance via the element's `dos` property after init
+            if (gameContainer && gameContainer.dos) return gameContainer.dos;
+            // fallback: try to find by known internal variable (if any)
+            if (window.__jsdos && window.__jsdos.instances && window.__jsdos.instances[0]) return window.__jsdos.instances[0];
+            return null;
         }
 
-        var loadTimeout = setTimeout(function() {
-            showError(i18n[lang].timeout);
-        }, 20000); // 20 seconds max
+        // Hide loading overlay once emulator signals ready
+        function hideLoading() {
+            if (loadingDiv) loadingDiv.style.opacity = '0';
+            setTimeout(() => {
+                if (loadingDiv) loadingDiv.style.display = 'none';
+            }, 300);
+        }
 
-        // ---------- Initialize js-dos with iOS memory fix ----------
-        function initDosbox() {
-            if (typeof Dosbox === 'undefined') {
-                showError('js-dos API failed to load');
-                clearTimeout(loadTimeout);
-                return;
-            }
-
-            // The crucial iOS fix: limit WebAssembly memory
-            var dosboxConfig = {
-                id: "dosbox",
-                onload: function(dosbox) {
-                    // Small delay ensures DOM/emulator is fully ready
-                    setTimeout(function() {
-                        try {
-                            var runPromise = dosbox.run(DOOM_ZIP, "./doom");
-                            // If promise is returned, catch errors
-                            if (runPromise && typeof runPromise.catch === 'function') {
-                                runPromise.catch(function(e) {
-                                    showError(i18n[lang].error + ' (Network)');
-                                    console.error('dosbox.run() failed:', e);
-                                });
-                            }
-                        } catch (e) {
-                            showError(i18n[lang].error + ' (Exception)');
-                            console.error('Exception during run():', e);
-                        }
-                    }, 300);
-                },
-                onrun: function(dosbox, app) {
-                    clearTimeout(loadTimeout);
-                    console.log("DOOM is now running");
-                    loadingEl.style.display = 'none';
-                    gamepadPanel.classList.remove('hidden');
-                },
-                // ===== iOS MEMORY FIX (CRITICAL) =====
-                emulator: {
-                    wasmMemoryOptions: {
-                        initial: 64,   // 64 MB initial (works on iOS)
-                        maximum: 128   // 128 MB maximum
-                    }
-                    // Alternative for older js-dos versions:
-                    // memoryLimit: 128
+        // Listen for emulator load events
+        if (gameContainer) {
+            // Modern js-dos emits events on the element
+            gameContainer.addEventListener('dos-ready', function(e) {
+                console.log('dos-ready event fired');
+                dosInstance = getDosInstance();
+                hideLoading();
+            });
+            gameContainer.addEventListener('dos-run', function() {
+                console.log('dos-run event');
+                hideLoading();
+            });
+            // Fallback: observe if canvas appears
+            const observer = new MutationObserver(function(mutations) {
+                if (gameContainer.querySelector('canvas')) {
+                    hideLoading();
+                    observer.disconnect();
                 }
-            };
-
-            dosboxInstance = new Dosbox(dosboxConfig);
+            });
+            observer.observe(gameContainer, { childList: true, subtree: true });
+            // Timeout fallback (bundle is ~15-20MB, give it time)
+            setTimeout(() => {
+                if (loadingDiv && loadingDiv.style.display !== 'none') {
+                    loadingDiv.innerText = 'Still loading… check connection';
+                }
+            }, 10000);
         }
 
-        // ---------- Fullscreen ----------
-        document.getElementById('fullscreenBtn').addEventListener('click', function() {
-            if (dosboxInstance && dosboxInstance.requestFullScreen) {
-                dosboxInstance.requestFullScreen();
+        // Reload functionality: recreate the jsdos element to restart emulation
+        function reloadGame() {
+            if (!gameContainer) return;
+            // Remove old instance and create a fresh div
+            let parent = gameContainer.parentNode;
+            let newDiv = document.createElement('div');
+            newDiv.className = 'jsdos';
+            newDiv.setAttribute('data-url', 'https://cdn.dos.zone/custom/dos/doom.jsdos');
+            newDiv.setAttribute('data-bg', 'https://dos.zone/images/containers/assets/backgrounds/doom_1.jpg/fe8f7f08ddbeced41a847eca0dcd5bbf.webp');
+            newDiv.setAttribute('data-lang', 'en');
+            // Replace old with new
+            parent.replaceChild(newDiv, gameContainer);
+            gameContainer = newDiv;
+            // Reset loading message
+            if (loadingDiv) {
+                loadingDiv.style.display = 'block';
+                loadingDiv.style.opacity = '1';
+                loadingDiv.innerText = 'Reloading DOOM ...';
+            }
+            // Re-attach event listeners (js-dos will auto-initialize the new element)
+            gameContainer.addEventListener('dos-ready', function() { hideLoading(); });
+            gameContainer.addEventListener('dos-run', function() { hideLoading(); });
+            // Force js-dos to re-scan (it usually watches for new .jsdos elements automatically)
+            if (window.Dosbox && window.Dosbox.scanPage) {
+                window.Dosbox.scanPage();
+            }
+            // Fallback observer again
+            const obs = new MutationObserver(function() {
+                if (gameContainer.querySelector('canvas')) {
+                    hideLoading();
+                    obs.disconnect();
+                }
+            });
+            obs.observe(gameContainer, { childList: true, subtree: true });
+        }
+
+        // Fullscreen: use the dos instance's method if available, else native fullscreen on container
+        function requestFullscreen() {
+            let inst = getDosInstance();
+            if (inst && typeof inst.requestFullScreen === 'function') {
+                inst.requestFullScreen();
+            } else if (inst && typeof inst.requestFullscreen === 'function') {
+                inst.requestFullscreen();
             } else {
-                var el = document.getElementById('dosbox-container');
-                if (el.requestFullscreen) {
-                    el.requestFullscreen();
-                } else if (el.webkitRequestFullscreen) {
-                    el.webkitRequestFullscreen();
-                } else if (el.mozRequestFullScreen) {
-                    el.mozRequestFullScreen();
-                } else if (el.msRequestFullscreen) {
-                    el.msRequestFullscreen();
-                }
-            }
-        });
-
-        // ---------- On‑screen key injection ----------
-        function sendKey(keyCode) {
-            if (!dosboxInstance) return;
-            if (typeof dosboxInstance.sendKey === 'function') {
-                dosboxInstance.sendKey(keyCode);
-            } else if (typeof dosboxInstance.sendKeyPress === 'function') {
-                dosboxInstance.sendKeyPress(keyCode);
+                let container = document.querySelector('.game-container');
+                if (container.requestFullscreen) container.requestFullscreen();
+                else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
             }
         }
 
-        function attachControls() {
-            var buttons = document.querySelectorAll('[data-key]');
-            buttons.forEach(function(btn) {
-                function press(e) {
-                    e.preventDefault();
-                    var key = btn.getAttribute('data-key');
-                    sendKey(key);
-                    btn.style.background = '#3b82f6';
-                }
-                function release(e) {
-                    e.preventDefault();
-                    btn.style.background = '';
-                }
-                btn.addEventListener('touchstart', press, {passive: false});
-                btn.addEventListener('touchend', release);
-                btn.addEventListener('mousedown', press);
-                btn.addEventListener('mouseup', release);
-                btn.addEventListener('mouseleave', release);
+        if (reloadBtn) reloadBtn.addEventListener('click', reloadGame);
+        if (fullscreenBtn) fullscreenBtn.addEventListener('click', requestFullscreen);
+
+        // Prevent accidental zoom on touch devices (like original)
+        document.body.addEventListener('touchmove', function(e) {
+            if (e.target.closest('.jsdos') || e.target.closest('canvas')) {
+                // allow scrolling inside game? no, prevent page zoom
+                if (e.touches.length === 2) e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Small back link: just goes back in history (or you can change to your launcher page)
+        let backLink = document.getElementById('backLink');
+        if (backLink) {
+            backLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.history.back();
             });
         }
 
-        // Prevent default touch events on canvas (avoids zoom/pull-to-refresh)
-        var container = document.getElementById('dosbox');
-        container.addEventListener('touchstart', function(e) { e.preventDefault(); }, { passive: false });
-        container.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-
-        // ---------- Start ----------
-        initDosbox();
-        attachControls();
+        // Also add three-finger tap hint (original had it) – js-dos already supports virtual keyboard
+        console.log('DOOM Launcher ready – using official .jsdos bundle');
     })();
 </script>
 </body>
