@@ -1,111 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>DOOM - Play in Browser</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #0a0a0a;
-            font-family: system-ui, -apple-system, 'Segoe UI', monospace;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .top-bar {
-            background: #1a1a2e;
-            color: white;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-            border-bottom: 1px solid #333;
-        }
-        h1 {
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
-        .status {
-            font-size: 0.8rem;
-            color: #88ff88;
-        }
-        .game-wrapper {
-            flex: 1;
-            position: relative;
-            background: black;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            display: block;
-        }
-        .info {
-            text-align: center;
-            padding: 8px;
-            font-size: 0.75rem;
-            color: #aaa;
-            background: #111;
-            flex-shrink: 0;
-        }
-        a {
-            color: #88aaff;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>DOOM · Classic DOS Launcher</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none; /* avoid accidental text selection on UI */
+    }
+    body {
+      background: #0a0a0a;
+      font-family: 'Segoe UI', system-ui, -apple-system, monospace;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* top bar – minimal but functional */
+    .top-bar {
+      background: #1a1a2a;
+      color: #eee;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .game-title {
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: 1px;
+    }
+    .game-title span {
+      color: #ff5555;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+    button {
+      background: #2a2a3a;
+      border: none;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 24px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      font-weight: 500;
+    }
+    button:active {
+      background: #ff4444;
+      transform: scale(0.96);
+    }
+    /* game container – fills remaining space */
+    .game-container {
+      flex: 1;
+      position: relative;
+      background: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #dosbox {
+      width: 100%;
+      height: 100%;
+    }
+    /* loading / status overlay */
+    .status-overlay {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(6px);
+      color: #8aff80;
+      padding: 6px 18px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-family: monospace;
+      pointer-events: none;
+      z-index: 20;
+      white-space: nowrap;
+      transition: opacity 0.3s;
+    }
+    .fullscreen-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 30;
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+    @media (max-width: 600px) {
+      .top-bar { padding: 8px 12px; }
+      .game-title { font-size: 1rem; }
+      button { padding: 4px 10px; font-size: 0.7rem; }
+      .status-overlay { font-size: 0.7rem; white-space: nowrap; bottom: 12px; }
+    }
+  </style>
+  <!-- js-dos core – exactly the same version used by the working DOS Zone -->
+  <link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
+  <script src="https://v8.js-dos.com/latest/js-dos.js"></script>
 </head>
 <body>
+
 <div class="top-bar">
-    <h1>🔥 DOOM (1993)</h1>
-    <div class="status" id="status">Loading...</div>
+  <div class="game-title">🔥 <span>DOOM</span> · 1993</div>
+  <div class="controls">
+    <button id="reloadButton">⟳ RELOAD</button>
+  </div>
 </div>
-<div class="game-wrapper">
-    <!-- 
-        Official embed code from DOS.Zone.
-        This iframe loads the game from their reliable player,
-        no CORS, no local bundle needed.
-    -->
-    <iframe 
-        id="gameFrame"
-        src="https://dos.zone/player/?bundleUrl=https://cdn.dos.zone/custom/dos/doom.jsdos&anonymous=1"
-        allowfullscreen>
-    </iframe>
-</div>
-<div class="info">
-    🎮 Click inside to focus | Fullscreen available | <a href="#" id="reloadLink">Reload game</a>
+
+<div class="game-container">
+  <div id="dosbox"></div>
+  <div class="status-overlay" id="statusMessage">⚡ Loading DOOM engine...</div>
+  <button class="fullscreen-btn" id="fullscreenButton">⛶ FULLSCREEN</button>
 </div>
 
 <script>
-    const iframe = document.getElementById('gameFrame');
-    const statusDiv = document.getElementById('status');
-    const reloadLink = document.getElementById('reloadLink');
-
-    // Monitor iframe load
-    iframe.addEventListener('load', () => {
-        statusDiv.innerHTML = '✅ Ready — click to play';
-        statusDiv.style.color = '#88ff88';
+  (function() {
+    // ----- CONFIGURATION -----
+    // This is the EXACT same .jsdos bundle that powers the original dos.zone DOOM page.
+    // It contains the full game, DOSBox config, and is served with proper CORS headers.
+    const DOOM_BUNDLE_URL = "https://cdn.dos.zone/custom/dos/doom.jsdos";
+    
+    // DOM elements
+    const dosboxElement = document.getElementById("dosbox");
+    const statusDiv = document.getElementById("statusMessage");
+    const reloadBtn = document.getElementById("reloadButton");
+    const fullscreenBtn = document.getElementById("fullscreenButton");
+    
+    let dosInstance = null;      // will hold the js-dos instance
+    let isGameRunning = false;
+    
+    // Helper to update the status text and style
+    function setStatus(text, isError = false) {
+      if (statusDiv) {
+        statusDiv.textContent = text;
+        statusDiv.style.color = isError ? "#ff8888" : "#8aff80";
+      }
+      console.log(`[DOOM] ${text}`);
+    }
+    
+    // ---- Start or restart DOOM ----
+    function startDoom() {
+      // If there's an existing instance, try to clean it up
+      if (dosInstance) {
+        try {
+          // Some js-dos versions expose an exit method
+          if (typeof dosInstance.exit === 'function') {
+            dosInstance.exit();
+          }
+        } catch (e) { /* ignore */ }
+        dosInstance = null;
+      }
+      
+      // Clear the container (remove any leftover canvas / children)
+      while (dosboxElement.firstChild) {
+        dosboxElement.removeChild(dosboxElement.firstChild);
+      }
+      
+      setStatus("📦 Downloading DOOM data (first start may take 10–20s)...");
+      isGameRunning = false;
+      
+      try {
+        // Create the DOS instance – the official js-dos API
+        dosInstance = Dos(dosboxElement);
+        
+        // Run the game bundle – returns a Promise
+        dosInstance.run(DOOM_BUNDLE_URL)
+          .then(() => {
+            // Success: emulator has launched the game
+            isGameRunning = true;
+            setStatus("✅ DOOM is ready! Click inside and press any key.");
+            // Fade the status after 3 seconds, but keep it visible
+            setTimeout(() => {
+              if (statusDiv) statusDiv.style.opacity = "0.6";
+            }, 3000);
+          })
+          .catch((err) => {
+            console.error("DOOM run failed:", err);
+            setStatus("❌ Failed to start DOOM. Check internet connection or retry.", true);
+            dosInstance = null;
+          });
+      } catch (err) {
+        console.error("Error creating Dos instance:", err);
+        setStatus("❌ js-dos initialization error – see console for details.", true);
+        dosInstance = null;
+      }
+    }
+    
+    // ---- Reload: force a clean restart ----
+    function reloadDoom() {
+      setStatus("🔄 Restarting DOOM...");
+      if (statusDiv) statusDiv.style.opacity = "1";
+      startDoom();
+    }
+    
+    // ---- Fullscreen using the original js-dos method ----
+    function requestFullscreen() {
+      if (dosInstance && typeof dosInstance.requestFullScreen === 'function') {
+        dosInstance.requestFullScreen();
+      } else if (dosInstance && typeof dosInstance.requestFullscreen === 'function') {
+        dosInstance.requestFullscreen();
+      } else {
+        // Fallback: fullscreen on the game container
+        const container = document.querySelector(".game-container");
+        if (container.requestFullscreen) container.requestFullscreen();
+        else if (container.webkitRequestFullscreen) container.webkitRequestFullscreen();
+      }
+    }
+    
+    // ---- Event binding ----
+    if (reloadBtn) reloadBtn.addEventListener("click", reloadDoom);
+    if (fullscreenBtn) fullscreenBtn.addEventListener("click", requestFullscreen);
+    
+    // ---- Ensure canvas gets focus when clicked (helps keyboard input) ----
+    dosboxElement.addEventListener("click", () => {
+      const canvas = dosboxElement.querySelector("canvas");
+      if (canvas) canvas.focus();
     });
-
-    iframe.addEventListener('error', () => {
-        statusDiv.innerHTML = '❌ Failed to load. Check internet.';
-        statusDiv.style.color = '#ff8888';
+    
+    // ---- Auto-start when page is fully loaded ----
+    window.addEventListener("load", () => {
+      // Small delay to ensure DOM is stable
+      setTimeout(startDoom, 100);
     });
-
-    // Reload button
-    reloadLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        statusDiv.innerHTML = '🔄 Reloading...';
-        iframe.src = iframe.src; // force reload
-    });
-
-    // Optional: log any console messages from iframe (can't due to cross-origin, but fine)
-    console.log('DOOM launcher ready — using official DOS.Zone embed');
+    
+    // ---- Optional: timeout fallback message ----
+    setTimeout(() => {
+      if (!isGameRunning && dosInstance === null) {
+        setStatus("⚠️ Still loading? Click RELOAD if nothing happens.", false);
+      }
+    }, 20000);
+  })();
 </script>
 </body>
 </html>
